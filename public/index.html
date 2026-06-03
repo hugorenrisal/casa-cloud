@@ -1,0 +1,1102 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#fff5e9" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>Casa · tareas en familia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<style>
+:root{
+  /* ----- Paleta cálida "hogar soleado" ----- */
+  --bg:#fef6ea;          /* crema papel */
+  --bg2:#f5ead8;         /* crema más cálido (inputs, tracks) */
+  --card:#ffffff;        /* tarjetas blancas */
+  --card2:#fdf3e6;       /* relleno suave */
+  --line:#efe1cc;        /* líneas cálidas */
+  --text:#43352a;        /* marrón cálido oscuro */
+  --dim:#9c8a76;         /* texto secundario */
+  --faint:#c3b4a0;       /* texto muy tenue */
+
+  --accent:#ff7a59;      /* coral alegre (acción principal) */
+  --accent-ink:#ffffff;  /* texto sobre coral */
+  --sun:#ffc24b;         /* amarillo sol */
+  --green:#2fae73;       /* verde menta/hoja */
+  --amber:#f59331;       /* mandarina */
+  --red:#ef5b5b;         /* rojo suave */
+  --cyan:#2f9fd0;        /* azul cielo */
+  --violet:#8b6fd6;      /* uva */
+
+  --shadow:0 8px 22px rgba(180,120,70,.10), 0 2px 6px rgba(180,120,70,.06);
+  --shadow-lg:0 14px 40px rgba(180,120,70,.16);
+  --r:20px;
+  --num:"Fredoka",ui-rounded,system-ui,sans-serif;
+  font-family:"Nunito",system-ui,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);min-height:100vh}
+body{
+  background-image:
+    radial-gradient(520px 320px at 88% -6%, rgba(255,194,75,.22), transparent 60%),
+    radial-gradient(460px 300px at -8% 4%, rgba(255,122,89,.14), transparent 60%),
+    radial-gradient(600px 400px at 50% 108%, rgba(47,159,208,.10), transparent 60%);
+  background-attachment:fixed;
+}
+h1,h2,h3{margin:0;font-family:var(--num);font-weight:600;letter-spacing:-.01em}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select{font-family:inherit;font-size:15px;background:var(--bg2);border:1.5px solid var(--line);color:var(--text);border-radius:12px;padding:11px 13px;width:100%;font-weight:600}
+input:focus,select:focus{outline:none;border-color:var(--accent);background:#fff}
+.num{font-family:var(--num);font-variant-numeric:tabular-nums;font-weight:600}
+.dim{color:var(--dim)} .faint{color:var(--faint)}
+.screen{animation:rise .4s cubic-bezier(.2,.8,.2,1)}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes pop{0%{transform:scale(.8);opacity:0}60%{transform:scale(1.05)}100%{transform:scale(1);opacity:1}}
+
+.pill{font-size:11px;padding:5px 11px;border-radius:999px;font-weight:700;display:inline-flex;align-items:center;gap:5px}
+.p-pending{background:#f0e7d8;color:#9c8a76}
+.p-wait{background:#fff0d6;color:var(--amber)}
+.p-ok{background:#d9f5e7;color:var(--green)}
+.p-late{background:#fde0e0;color:var(--red)}
+.p-fixed{background:#d9eefa;color:var(--cyan)}
+.p-extra{background:#eae6fb;color:var(--violet)}
+.pts{font-family:var(--num);font-weight:700;color:var(--accent)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:11px 17px;border-radius:14px;font-weight:800;font-size:14px;background:#fff;border:1.5px solid var(--line);color:var(--text);transition:transform .12s, box-shadow .15s}
+.btn:hover{box-shadow:var(--shadow)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);box-shadow:0 6px 16px rgba(255,122,89,.32)}
+.btn.primary:hover{box-shadow:0 8px 22px rgba(255,122,89,.42)}
+.btn.sm{padding:8px 13px;font-size:13px;border-radius:11px}
+.btn.ok{background:#d9f5e7;color:var(--green);border-color:#bfead4}
+.btn.ghost{background:transparent;box-shadow:none}
+.btn:active{transform:scale(.96)} .btn:disabled{opacity:.45;cursor:default;box-shadow:none}
+.btn.w{width:100%}
+
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:var(--r);padding:18px;box-shadow:var(--shadow)}
+.card.glow{background:linear-gradient(160deg,#ffffff,#fff4e2);border-color:#ffe3bb}
+.row{display:flex;align-items:center;gap:10px} .spacer{flex:1}
+.field{margin-bottom:13px} .field label{font-size:12px;color:var(--dim);display:block;margin-bottom:6px;font-weight:700}
+.sect-title{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;font-weight:800;margin:4px 0 10px}
+.empty{text-align:center;color:var(--faint);padding:32px 10px;font-size:14px;font-weight:600}
+.preview-tag{display:inline-block;font-size:10px;font-weight:800;color:var(--violet);background:#eae6fb;padding:3px 9px;border-radius:7px;margin-left:8px}
+.avatar{border-radius:14px;display:grid;place-items:center;font-weight:800;flex:none;font-family:var(--num)}
+.progress{height:11px;background:var(--bg2);border-radius:999px;overflow:hidden;border:1px solid var(--line)}
+.progress>span{display:block;height:100%;border-radius:999px;transition:width .6s cubic-bezier(.2,.8,.2,1)}
+
+/* ===== Barra de modo (demo) ===== */
+.modebar{position:fixed;top:0;left:0;right:0;z-index:50;background:rgba(254,246,234,.86);backdrop-filter:blur(12px);border-bottom:1.5px solid var(--line);display:flex;align-items:center;gap:10px;padding:9px 16px;font-size:13px;font-weight:700}
+.modebar .seg{display:flex;background:var(--bg2);border:1.5px solid var(--line);border-radius:12px;padding:3px;gap:3px}
+.modebar .seg button{padding:6px 13px;border-radius:9px;font-size:12px;color:var(--dim);font-weight:800}
+.modebar .seg button.on{background:var(--accent);color:#fff;box-shadow:0 3px 8px rgba(255,122,89,.3)}
+
+/* =========================================================
+   ESCRITORIO (padre)
+   ========================================================= */
+.desk{display:none}
+.desk .wrap{max-width:1240px;margin:0 auto;padding:64px 26px 48px;display:grid;grid-template-columns:230px 1fr;gap:26px}
+.side{position:sticky;top:64px;align-self:start}
+.side .brand{display:flex;align-items:center;gap:11px;margin-bottom:24px;padding:0 4px}
+.side .brand .dot{width:46px;height:46px;border-radius:15px;background:linear-gradient(150deg,var(--accent),var(--sun));display:grid;place-items:center;font-size:22px;box-shadow:0 8px 18px rgba(255,122,89,.3);transform:rotate(-4deg)}
+.side nav{display:flex;flex-direction:column;gap:5px}
+.side nav button{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;color:var(--dim);font-weight:800;font-size:14px;text-align:left;width:100%;transition:.15s}
+.side nav button.on{background:#fff;color:var(--text);box-shadow:var(--shadow);border:1.5px solid var(--line)}
+.side nav button.on svg{stroke:var(--accent)}
+.side nav button:hover:not(.on){color:var(--text);background:rgba(255,255,255,.5)}
+.side nav svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.deskmain h2{font-size:27px;margin-bottom:3px}
+.deskmain .crumb{color:var(--dim);font-size:14px;margin-bottom:24px;font-weight:600}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:15px;margin-bottom:22px}
+.kpi{background:var(--card);border:1.5px solid var(--line);border-radius:18px;padding:17px;box-shadow:var(--shadow);border-top:4px solid var(--accent);animation:rise .4s both}
+.kpi:nth-child(1){border-top-color:var(--green)} .kpi:nth-child(2){border-top-color:var(--cyan)}
+.kpi:nth-child(3){border-top-color:var(--sun)} .kpi:nth-child(4){border-top-color:var(--violet)}
+.kpi:nth-child(2){animation-delay:.05s} .kpi:nth-child(3){animation-delay:.1s} .kpi:nth-child(4){animation-delay:.15s}
+.kpi .k{font-size:13px;color:var(--dim);font-weight:700} .kpi .v{font-family:var(--num);font-size:28px;margin-top:6px;font-weight:700} .kpi .v small{font-size:15px;color:var(--dim)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.cols-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);font-weight:800;padding:9px 10px;border-bottom:2px solid var(--line)}
+td{padding:12px 10px;border-bottom:1px solid var(--line);font-size:14px;font-weight:600}
+tr:last-child td{border-bottom:none}
+.bal{display:flex;gap:18px;align-items:flex-end;height:155px;padding-top:10px}
+.bal .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:9px;height:100%;justify-content:flex-end}
+.bal .bar{width:100%;max-width:56px;border-radius:14px 14px 7px 7px;display:flex;align-items:flex-start;justify-content:center;padding-top:7px;transition:height .6s cubic-bezier(.2,.8,.2,1);box-shadow:inset 0 -6px 12px rgba(0,0,0,.06)}
+.bal .bar .v{font-family:var(--num);font-size:13px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.18)}
+.bal .nm{font-size:13px;color:var(--dim);font-weight:700}
+.task-line{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.task-line:last-child{border:none}
+.tic{width:42px;height:42px;border-radius:13px;background:var(--card2);display:grid;place-items:center;font-size:19px;flex:none;border:1.5px solid var(--line)}
+.chip{font-size:11px;padding:4px 10px;border-radius:9px;background:var(--card2);border:1.5px solid var(--line);color:var(--dim);font-weight:700}
+
+/* =========================================================
+   MÓVIL (hijo)
+   ========================================================= */
+.mob{display:none}
+.mob .phone{max-width:480px;margin:0 auto;padding:58px 16px 100px;position:relative;min-height:100vh}
+.mob .head{display:flex;align-items:center;gap:13px;margin-bottom:18px}
+.mob .head .avatar{width:48px;height:48px;font-size:20px;box-shadow:var(--shadow)}
+.mob .head h1{font-size:20px} .mob .head .sub{font-size:12px;color:var(--dim);margin-top:2px;font-weight:700}
+.mob .icon-btn{margin-left:auto;width:44px;height:44px;border-radius:14px;background:#fff;border:1.5px solid var(--line);display:grid;place-items:center;box-shadow:var(--shadow)}
+.hero{background:linear-gradient(150deg,#fff,#fff0df 60%,#ffe7ec);border:1.5px solid #ffe1bd;border-radius:24px;padding:21px;margin-bottom:16px;position:relative;overflow:hidden;box-shadow:var(--shadow)}
+.hero::after{content:"";position:absolute;right:-26px;top:-26px;width:130px;height:130px;border-radius:50%;background:radial-gradient(closest-side,rgba(255,194,75,.45),transparent)}
+.hero::before{content:"☀️";position:absolute;right:16px;top:14px;font-size:26px;opacity:.85}
+.hero .label{font-size:12px;color:var(--dim);font-weight:700} .hero .big{font-family:var(--num);font-size:44px;font-weight:700;margin-top:6px;line-height:1;color:var(--accent)}
+.hero .big small{font-size:19px;color:var(--dim)}
+.ring{width:66px;height:66px;border-radius:50%;display:grid;place-items:center;flex:none;background:conic-gradient(var(--accent) calc(var(--pct)*1%), #f1e4d0 0);box-shadow:0 4px 10px rgba(255,122,89,.22)}
+.ring .inner{width:52px;height:52px;border-radius:50%;background:#fff;display:grid;place-items:center;font-weight:700;font-size:14px;font-family:var(--num);color:var(--text)}
+.task{display:flex;align-items:center;gap:13px;background:var(--card);border:1.5px solid var(--line);border-radius:18px;padding:14px;margin-bottom:11px;box-shadow:var(--shadow)}
+.task.approved{opacity:.6} .task .tname{font-weight:800} .task .tsub{font-size:12px;color:var(--dim);margin-top:5px}
+.mcard{background:var(--card);border:1.5px solid var(--line);border-radius:18px;padding:15px;margin-bottom:12px;box-shadow:var(--shadow)}
+.badges{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;text-align:center}
+.badge{aspect-ratio:1;border-radius:17px;background:linear-gradient(155deg,#fff,#fdf1e0);border:1.5px solid var(--line);display:grid;place-items:center;font-size:26px;box-shadow:var(--shadow);animation:pop .4s both}
+.badge:nth-child(2){animation-delay:.04s}.badge:nth-child(3){animation-delay:.08s}.badge:nth-child(4){animation-delay:.12s}
+.badge:nth-child(5){animation-delay:.16s}.badge:nth-child(6){animation-delay:.2s}.badge:nth-child(7){animation-delay:.24s}.badge:nth-child(8){animation-delay:.28s}
+.badge.locked{opacity:.4;filter:grayscale(.7);box-shadow:none} .badge .l{font-size:9px;color:var(--dim);margin-top:3px;font-weight:700}
+.day{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}
+.day:last-child{border:none} .day .dn{width:42px;font-size:12px;color:var(--accent);font-weight:800;text-transform:uppercase}
+.seg{display:flex;background:var(--bg2);border:1.5px solid var(--line);border-radius:13px;padding:3px;gap:3px}
+.seg button{flex:1;padding:9px;border-radius:10px;font-size:13px;color:var(--dim);font-weight:800}
+.seg button.on{background:var(--accent);color:#fff;box-shadow:0 3px 8px rgba(255,122,89,.3)}
+.nav{position:fixed;left:0;right:0;bottom:0;max-width:480px;margin:0 auto;background:rgba(255,255,255,.92);backdrop-filter:blur(14px);border-top:1.5px solid var(--line);display:flex;padding:9px 6px calc(9px + env(safe-area-inset-bottom));z-index:20;box-shadow:0 -6px 20px rgba(180,120,70,.08)}
+.nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0;color:var(--faint);font-size:10px;font-weight:800;transition:.15s}
+.nav button.on{color:var(--accent)} .nav button.on svg{stroke:var(--accent)} .nav svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+
+/* Sheet móvil */
+.sheet-bg{position:fixed;inset:0;background:rgba(67,53,42,.4);z-index:30;display:none} .sheet-bg.open{display:block;animation:rise .2s}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-width:480px;margin:0 auto;background:var(--card);border-radius:26px 26px 0 0;border:1.5px solid var(--line);padding:22px 18px calc(24px + env(safe-area-inset-bottom));z-index:31;transform:translateY(100%);transition:.32s cubic-bezier(.2,.8,.2,1);max-height:85vh;overflow:auto;box-shadow:var(--shadow-lg)}
+.sheet.open{transform:none} .sheet .grab{width:42px;height:5px;border-radius:3px;background:var(--line);margin:0 auto 18px}
+.sheet h3{font-size:18px}
+
+/* Modal escritorio */
+.modal-bg{position:fixed;inset:0;background:rgba(67,53,42,.45);z-index:40;display:none;place-items:center;padding:20px} .modal-bg.open{display:grid;animation:rise .2s}
+.modal{background:var(--card);border:1.5px solid var(--line);border-radius:22px;padding:26px;width:min(440px,92vw);max-height:88vh;overflow:auto;box-shadow:var(--shadow-lg)}
+.modal h3{font-size:20px}
+
+@media(min-width:861px){ .desk{display:block} }
+@media(max-width:860px){ .mob{display:block} }
+</style>
+</head>
+<body>
+<div class="modebar" id="modebar"></div>
+<div class="desk" id="desk"></div>
+<div class="mob" id="mob"></div>
+<div class="sheet-bg" id="sheetBg" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet"></div>
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()"><div class="modal" id="modal"></div></div>
+<script>
+// =========================================================================
+//  ESTADO Y PERSISTENCIA
+// =========================================================================
+// --- Persistencia en SERVIDOR (estado familiar compartido) ---
+// El rol elegido (padre o qué hijo) sí es local a este dispositivo.
+const ROLE_KEY = "casa_role_v1";
+let _saveTimer=null, _lastSent=0;
+const Store = {
+  // read() ya no se usa para el arranque (ver bootstrap); se mantiene por compatibilidad.
+  read(){ return null; },
+  write(s){
+    // Envía el estado al servidor con un pequeño anti-rebote.
+    clearTimeout(_saveTimer);
+    _saveTimer=setTimeout(()=>{
+      _lastSent=Date.now();
+      fetch("/api/state",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(s)})
+        .catch(()=>{ showConn(false); });
+    },250);
+  },
+};
+function showConn(ok){
+  const el=document.getElementById("connDot"); if(!el)return;
+  el.style.background = ok? "var(--green)" : "var(--red)";
+  el.title = ok? "Conectado" : "Sin conexión con el servidor";
+}
+const uid=p=>p+Math.random().toString(36).slice(2,8);
+const esc=s=>String(s).replace(/[<>&"]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c]));
+const fmt=n=>(Math.round(n*100)/100).toFixed(2);
+const LOAD={normal:1,reducida:.6,minima:.3};
+const LOAD_LABEL={normal:"Normal",reducida:"Reducida",minima:"Mínima"};
+const DAYS=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+const monthKey=(d=new Date())=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+const monthName=k=>{const[y,m]=k.split("-");return ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"][+m-1]+" "+y};
+// Semana ISO "YYYY-Www" a partir de la fecha real (las fijas se evalúan por semana).
+function weekKey(d=new Date()){
+  const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+  const day=(t.getUTCDay()+6)%7; t.setUTCDate(t.getUTCDate()-day+3);
+  const firstThu=new Date(Date.UTC(t.getUTCFullYear(),0,4));
+  const wk=1+Math.round(((t-firstThu)/86400000-3+((firstThu.getUTCDay()+6)%7))/7);
+  return t.getUTCFullYear()+"-W"+String(wk).padStart(2,"0");
+}
+const todayIdx=()=>(new Date().getDay()+6)%7; // Lun=0 ... Dom=6
+const DAYLBL=["L","M","X","J","V","S","D"];
+const isDaily=t=>t.freq==="daily";
+
+function seed(){
+  return {
+    view:"desk", profile:"parent", deskTab:"home", mobTab:"home",
+    currentMonth: monthKey(), currentWeek: weekKey(),
+    rate:0.05, fixedPay:8,
+    members:[
+      {id:"ana",name:"Ana",role:"child",color:"#e0588f",load:"normal"},
+      {id:"leo",name:"Leo",role:"child",color:"#2f9fd0",load:"reducida"},
+      {id:"mia",name:"Mía",role:"child",color:"#2fae73",load:"normal"},
+    ],
+    // Tareas FIJAS: mismas para todos. Cada hijo tiene su propia instancia/semana.
+    fixedTasks:[
+      {id:"f1",name:"Hacer la cama",icon:"🛏️",freq:"daily"},
+      {id:"f2",name:"Recoger tu plato",icon:"🍽️",freq:"daily"},
+      {id:"f3",name:"Preparar la mochila",icon:"🎒",freq:"daily"},
+      {id:"f4",name:"Poner una lavadora",icon:"🧺",freq:"weekly"},
+    ],
+    // Tareas ADICIONALES: se reparten por peso; dan dinero extra.
+    extraTasks:[
+      {id:"e1",name:"Limpiar el baño",points:40,icon:"🛁"},
+      {id:"e2",name:"Aspirar el salón",points:25,icon:"🧹"},
+      {id:"e3",name:"Poner la lavadora",points:20,icon:"🧺"},
+      {id:"e4",name:"Sacar la basura",points:10,icon:"🗑️"},
+      {id:"e5",name:"Pasear al perro",points:15,icon:"🐕"},
+    ],
+    // Fijas (seguimiento SEMANAL): fixedState[childId][taskId] = {days:[7 bool]}(diaria) | {status}(semanal)
+    fixedState:{}, extras:[], generated:false,
+    monthPoints:{ana:0,leo:0,mia:0},
+    streak:{ana:4,leo:2,mia:6},
+    history:{},
+    dishes:["Pasta con tomate","Pollo al horno","Lentejas","Pescado y verdura","Pizza casera","Hamburguesas","Arroz al horno","Tortilla francesa","Ensalada César","Macarrones","Sopa y croquetas","Tacos"],
+    menu:{Lun:"Pasta con tomate",Mar:"Pollo al horno",Mié:"Lentejas",Jue:"Pescado y verdura",Vie:"Pizza casera",Sáb:"Hamburguesas",Dom:"Arroz al horno"},
+    rewards:[
+      {id:"r1",title:"1 h más de pantalla",cost:60,type:"Tiempo"},
+      {id:"r2",title:"Elegir la peli del finde",cost:40,type:"Privilegio"},
+      {id:"r3",title:"Noche sin tareas",cost:120,type:"Privilegio"},
+    ],
+    listings:[], offers:[], marketLog:[], // mercado de tareas
+  };
+}
+
+let S = null; // se carga del servidor en bootstrap()
+function ensureShape(){
+  if(!S) return; // el estado aún no ha llegado del servidor
+  // Campos de navegación (la semilla del servidor puede no traerlos)
+  if(!S.deskTab) S.deskTab="home";
+  if(!S.mobTab) S.mobTab="home";
+  if(!S.view) S.view="desk";
+  if(!S.profile) S.profile="parent";
+  // Añade campos nuevos a estados guardados antes de tener mercado.
+  if(!Array.isArray(S.listings)) S.listings=[];
+  if(!Array.isArray(S.offers)) S.offers=[];
+  if(!Array.isArray(S.marketLog)) S.marketLog=[];
+  if(Array.isArray(S.extras)) S.extras.forEach(x=>{ if(x.listed===undefined) x.listed=false; });
+  if(Array.isArray(S.fixedTasks)) S.fixedTasks.forEach(t=>{ if(!t.freq) t.freq="daily"; });
+  if(!S.fixedState || typeof S.fixedState!=="object") S.fixedState={};
+  if(!S.currentWeek) S.currentWeek=weekKey();
+  delete S.swaps; delete S.fixedInstances;
+}
+
+// ---- Reseteo mensual ligado a la fecha real -----------------------------
+function rollover(){
+  const cur=monthKey();
+  if(S.currentMonth===cur) return;
+  S.history=S.history||{};
+  S.history[S.currentMonth]={points:{...S.monthPoints}};
+  S.currentMonth=cur;
+  S.monthPoints=Object.fromEntries(S.members.filter(m=>m.role==="child").map(m=>[m.id,0]));
+  S.fixedState={}; S.extras=[]; S.generated=false; S.listings=[]; S.offers=[]; S.marketLog=[];
+  save();
+}
+const save=()=>Store.write(S);
+const $=id=>document.getElementById(id);
+const children=()=>S.members.filter(m=>m.role==="child");
+const member=id=>S.members.find(m=>m.id===id);
+
+// =========================================================================
+//  MOTOR
+// =========================================================================
+function generateMonth(){
+  // Fijas: una instancia por hijo (mismas tareas para todos)
+  S.currentWeek=weekKey();
+  initFixedWeek();
+  // Adicionales: repartir por peso según disponibilidad
+  const kids=children();
+  const sumF=kids.reduce((s,c)=>s+LOAD[c.load],0)||1;
+  const total=S.extraTasks.reduce((s,t)=>s+t.points,0);
+  const bins=kids.map(c=>({id:c.id,target:(total*LOAD[c.load])/sumF,load:0}));
+  const ordered=[...S.extraTasks].sort((a,b)=>b.points-a.points);
+  S.extras=[];
+  for(const t of ordered){
+    bins.sort((a,b)=>(b.target-b.load)-(a.target-a.load));
+    bins[0].load+=t.points;
+    S.extras.push({id:uid("x"),taskId:t.id,memberId:bins[0].id,status:"pending"});
+  }
+  S.generated=true; save();
+}
+
+const fixedTask=id=>S.fixedTasks.find(t=>t.id===id);
+const fixedStateOf=(childId,taskId)=>(S.fixedState[childId]||{})[taskId];
+function fixedUnits(t){ return isDaily(t)?7:1; }
+function initFixedWeek(){
+  S.fixedState={};
+  children().forEach(c=>{ S.fixedState[c.id]={};
+    S.fixedTasks.forEach(t=>{ S.fixedState[c.id][t.id]= isDaily(t)?{days:[false,false,false,false,false,false,false]}:{status:"pending"}; });
+  });
+}
+// Asegura que fixedState tiene forma correcta (nuevos hijos/tareas/cambios de frecuencia)
+function ensureFixedShape(){
+  if(!S.fixedState) S.fixedState={};
+  children().forEach(c=>{
+    if(!S.fixedState[c.id]) S.fixedState[c.id]={};
+    S.fixedTasks.forEach(t=>{
+      const cur=S.fixedState[c.id][t.id];
+      if(!cur) S.fixedState[c.id][t.id]= isDaily(t)?{days:[false,false,false,false,false,false,false]}:{status:"pending"};
+      else if(isDaily(t)&&!cur.days) S.fixedState[c.id][t.id]={days:[false,false,false,false,false,false,false]};
+      else if(!isDaily(t)&&cur.days) S.fixedState[c.id][t.id]={status:"pending"};
+    });
+  });
+}
+// Reinicio semanal automático de las fijas
+function ensureWeek(){
+  const wk=weekKey();
+  if(S.currentWeek!==wk){ S.currentWeek=wk; if(S.generated) initFixedWeek(); save(); }
+  else ensureFixedShape();
+}
+function fixedApprovedUnits(childId){
+  let n=0;
+  S.fixedTasks.forEach(t=>{ const st=fixedStateOf(childId,t.id); if(!st)return;
+    if(isDaily(t)) n+=(st.days||[]).filter(Boolean).length; else n+=(st.status==="approved")?1:0; });
+  return n;
+}
+function fixedTotalUnits(childId){ return S.fixedTasks.reduce((s,t)=>s+fixedUnits(t),0); }
+const extraTask=id=>S.extraTasks.find(t=>t.id===id);
+
+function fixedRatio(childId){
+  const tot=fixedTotalUnits(childId); if(!tot) return 1;
+  return fixedApprovedUnits(childId)/tot;
+}
+function extraPointsApproved(childId){
+  return S.extras.filter(x=>x.memberId===childId&&x.status==="approved")
+    .reduce((s,x)=>s+extraTask(x.taskId).points,0);
+}
+function extraPointsAssigned(childId){
+  return S.extras.filter(x=>x.memberId===childId).reduce((s,x)=>s+extraTask(x.taskId).points,0);
+}
+// Puntos del mes (para nivel) = fijas aprobadas (10pts c/u) + adicionales aprobadas
+function monthPoints(childId){
+  return Math.max(0, fixedApprovedUnits(childId)*2 + extraPointsApproved(childId) + marketBountyNet(childId));
+}
+// Neto de PUNTOS por primas del mercado, solo de tareas ya APROBADAS.
+// (afecta al nivel/premios; el dinero va por el esfuerzo de la tarea hecha)
+function marketBountyNet(childId){
+  let net=0;
+  S.extras.filter(x=>x.status==="approved"&&x.bounty).forEach(x=>{
+    if(x.bounty.to===childId) net+=x.bounty.points;
+    if(x.bounty.from===childId) net-=x.bounty.points;
+  });
+  return net;
+}
+function money(childId){
+  const ratio=fixedRatio(childId);
+  const fixedEarned=ratio>=0.75?S.fixedPay:0;
+  const canExtra=ratio>=1;
+  const extraEarned=canExtra?extraPointsApproved(childId)*S.rate:0;
+  return {ratio,fixedEarned,extraEarned,total:Math.max(0,fixedEarned+extraEarned),canExtra};
+}
+function levelOf(childId){ const p=monthPoints(childId); return {level:Math.floor(p/100)+1,into:p%100,points:p}; }
+
+// =========================================================================
+//  ACCIONES
+// =========================================================================
+function setFixedStatus(childId,taskId,st){ const cur=fixedStateOf(childId,taskId); if(cur&&!cur.days){ cur.status=st; save(); render(); } }
+function toggleFixedDay(childId,taskId,dayIdx){ const cur=fixedStateOf(childId,taskId); if(cur&&cur.days){ cur.days[dayIdx]=!cur.days[dayIdx]; save(); render(); } }
+function setFixedFreq(taskId,freq){ const t=fixedTask(taskId); if(t){ t.freq=freq; ensureFixedShape(); save(); render(); } }
+function setExtraStatus(id,st){ const x=S.extras.find(e=>e.id===id); if(x){x.status=st;save();render()} }
+// ===================== MERCADO DE TAREAS =====================
+function listingOf(assignmentId){ return S.listings.find(l=>l.assignmentId===assignmentId && l.status==="open"); }
+function offersForListing(listingId){ return S.offers.filter(o=>o.listingId===listingId && o.status==="pending"); }
+
+// Publicar una tarea adicional propia en el mercado.
+function publishListing(assignmentId){
+  const pts = Math.max(0, parseInt(($("plPoints")||{}).value,10) || 0);
+  const trade = ($("plTrade")||{}).checked;
+  const note = (($("plNote")||{}).value || "").trim();
+  if(pts<=0 && !trade){ alert("Ofrece puntos o permite trueque (o ambos)."); return; }
+  const x=S.extras.find(e=>e.id===assignmentId);
+  if(!x || x.status!=="pending" || x.listed) return;
+  S.listings.push({id:uid("l"), sellerId:x.memberId, assignmentId, taskId:x.taskId,
+    pointsOffered:pts, acceptsTrade:!!trade, note, status:"open", createdAt:Date.now()});
+  x.listed=true; save(); closeSheet(); render();
+}
+function cancelListing(listingId){
+  const l=S.listings.find(x=>x.id===listingId); if(!l||l.status!=="open")return;
+  l.status="cancelled";
+  S.offers.filter(o=>o.listingId===listingId&&o.status==="pending").forEach(o=>o.status="rejected");
+  const x=S.extras.find(e=>e.id===l.assignmentId); if(x)x.listed=false;
+  save(); render();
+}
+// "Me la quedo": cierre directo por los puntos ofrecidos.
+function takeListing(listingId, bidderId){
+  const l=S.listings.find(x=>x.id===listingId); if(!l||l.status!=="open"||bidderId===l.sellerId)return;
+  const x=S.extras.find(e=>e.id===l.assignmentId); if(!x||x.status!=="pending")return;
+  x.memberId=bidderId; x.listed=false;
+  if(l.pointsOffered>0) x.bounty={points:l.pointsOffered, from:l.sellerId, to:bidderId};
+  l.status="closed";
+  S.offers.filter(o=>o.listingId===listingId&&o.status==="pending").forEach(o=>o.status="rejected");
+  S.marketLog.push({kind:"take", taskId:l.taskId, from:l.sellerId, to:bidderId, points:l.pointsOffered, at:Date.now()});
+  save(); closeSheet(); render();
+}
+// Ofrecer un trueque: una de mis tareas a cambio (+ puntos opcionales que pido).
+function submitTradeOffer(listingId, bidderId){
+  const offeredId = ($("toTask")||{}).value;
+  const pts = Math.max(0, parseInt(($("toPoints")||{}).value,10) || 0);
+  const l=S.listings.find(x=>x.id===listingId); if(!l||l.status!=="open"||!l.acceptsTrade)return;
+  const off=S.extras.find(e=>e.id===offeredId);
+  if(!off || off.memberId!==bidderId || off.status!=="pending" || off.listed){ alert("Elige una tarea válida tuya."); return; }
+  S.offers.push({id:uid("o"), listingId, bidderId, offeredAssignmentId:offeredId, offeredTaskId:off.taskId,
+    pointsAsked:pts, status:"pending", createdAt:Date.now()});
+  save(); closeSheet(); render();
+}
+function rejectOffer(offerId){ const o=S.offers.find(x=>x.id===offerId); if(o&&o.status==="pending"){o.status="rejected";save();render()} }
+// El vendedor acepta un trueque: se intercambian las tareas (+ compensación en puntos).
+function acceptOffer(offerId){
+  const o=S.offers.find(x=>x.id===offerId); if(!o||o.status!=="pending")return;
+  const l=S.listings.find(x=>x.id===o.listingId); if(!l||l.status!=="open")return;
+  const sellerTask=S.extras.find(e=>e.id===l.assignmentId);
+  const bidderTask=S.extras.find(e=>e.id===o.offeredAssignmentId);
+  if(!sellerTask||!bidderTask||sellerTask.status!=="pending"||bidderTask.status!=="pending"){ alert("Alguna tarea ya no está disponible."); o.status="rejected"; save(); render(); return; }
+  sellerTask.memberId=o.bidderId; sellerTask.listed=false;
+  bidderTask.memberId=l.sellerId;
+  if(o.pointsAsked>0) sellerTask.bounty={points:o.pointsAsked, from:l.sellerId, to:o.bidderId};
+  l.status="closed";
+  S.offers.filter(x=>x.listingId===l.id&&x.status==="pending").forEach(x=>x.status="rejected");
+  S.marketLog.push({kind:"trade", taskId:l.taskId, giveTaskId:o.offeredTaskId, from:l.sellerId, to:o.bidderId, points:o.pointsAsked, at:Date.now()});
+  save(); render();
+}
+function setView(v){ S.view=v; rememberRole(); save(); render() }
+function setProfile(p){ S.profile=p; S.deskTab="home"; S.mobTab="home"; rememberRole(); save(); closeSheet(); render() }
+function setDeskTab(t){ S.deskTab=t; save(); render() }
+function setMobTab(t){ S.mobTab=t; save(); render() }
+function setLoad(id,v){ member(id).load=v; save(); render() }
+function setMenu(day,dish){ S.menu[day]=dish; save(); render() }
+function regenMenu(){ const d=[...S.dishes]; DAYS.forEach(day=>{ S.menu[day]=d[Math.floor(Math.random()*d.length)] }); save(); render() }
+function saveEcon(){ S.rate=parseFloat($("ecRate").value)||S.rate; S.fixedPay=parseFloat($("ecFixed").value)||S.fixedPay; save(); closeModal(); render() }
+function addFixed(){ const n=$("ftName").value.trim(); if(!n)return; const freq=($("ftFreq")||{}).value||"daily"; S.fixedTasks.push({id:uid("f"),name:n,icon:$("ftIcon").value,freq}); ensureFixedShape(); save();closeModal();closeSheet();render() }
+function addExtra(){ const n=$("etName").value.trim(); const p=parseInt($("etPts").value,10); if(!n||!p)return; S.extraTasks.push({id:uid("e"),name:n,points:p,icon:$("etIcon").value}); save();closeModal();closeSheet();render() }
+function delFixed(id){ S.fixedTasks=S.fixedTasks.filter(t=>t.id!==id); save();render() }
+function delExtra(id){ S.extraTasks=S.extraTasks.filter(t=>t.id!==id); save();render() }
+function addDish(){ const n=$("dishName").value.trim(); if(!n)return; S.dishes.push(n); save();closeModal();closeSheet();render() }
+async function resetAll(){
+  if(!confirm("Esto reiniciará TODOS los datos a la familia de ejemplo. ¿Continuar?")) return;
+  try{
+    const r=await fetch("/api/reset",{method:"POST"}); if(!r.ok) throw 0;
+    const r2=await fetch("/api/state"); S=await r2.json(); ensureShape(); render();
+  }catch(e){ alert("No se pudo reiniciar. Inténtalo de nuevo."); }
+}
+
+// =========================================================================
+//  ICONOS
+// =========================================================================
+const ICN={
+  home:"M3 11l9-8 9 8M5 10v10h14V10", scale:"M12 3v18M5 7h14M7 7l-3 6a3 3 0 006 0zM17 7l-3 6a3 3 0 006 0z",
+  check:"M12 3a9 9 0 100 18 9 9 0 000-18zM8.5 12l2.5 2.5L16 9", swap:"M7 10l-4 4 4 4M3 14h13M17 14l4-4-4-4M21 10H8",
+  trophy:"M8 21h8M12 17v4M7 4h10v4a5 5 0 01-10 0zM7 6H4v1a3 3 0 003 3M17 6h3v1a3 3 0 01-3 3",
+  fork:"M5 3v7a3 3 0 003 3v8M8 3v8M16 3c-1.5 0-2.5 2-2.5 5s1 4 2.5 4v8", gift:"M20 12v9H4v-9M2 8h20v4H2zM12 21V8M12 8H7.5a2.5 2.5 0 010-5C11 3 12 8 12 8zM12 8h4.5a2.5 2.5 0 000-5C13 3 12 8 12 8z",
+  cog:"M12 8a4 4 0 100 8 4 4 0 000-8zM3 12h2M19 12h2M12 3v2M12 19v2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4",
+  users:"M16 11a4 4 0 10-8 0M2 21a6 6 0 0120 0", coin:"M12 3a9 9 0 100 18 9 9 0 000-18zM12 7v10M9 9.5h4a1.5 1.5 0 010 3H10a1.5 1.5 0 000 3h4",
+};
+const svg=k=>`<svg viewBox="0 0 24 24"><path d="${ICN[k]}"/></svg>`;
+
+// =========================================================================
+//  VISTA ESCRITORIO — PADRE
+// =========================================================================
+const DESK_NAV=[["home","Resumen","home"],["fixed","Tareas fijas","check"],["extra","Adicionales","scale"],["validate","Validar","users"],["menu","Menús","fork"],["econ","Economía","coin"]];
+
+function renderDesk(){
+  const tab=S.deskTab;
+  const titles={home:"Resumen de la familia",fixed:"Tareas fijas",extra:"Tareas adicionales",validate:"Validaciones",menu:"Planificador de menús",econ:"Economía y ajustes"};
+  const body=({home:dHome,fixed:dFixed,extra:dExtra,validate:dValidate,menu:dMenu,econ:dEcon}[tab]||dHome)();
+  $("desk").innerHTML=`<div class="wrap">
+    <aside class="side">
+      <div class="brand"><span class="dot">🏠</span><div><div style="font-weight:700">Casa</div><div class="dim" style="font-size:11px">${esc(monthName(S.currentMonth))}</div></div></div>
+      <nav>${DESK_NAV.map(([t,l,ic])=>`<button class="${tab===t?"on":""}" onclick="setDeskTab('${t}')">${svg(ic)}${l}</button>`).join("")}</nav>
+    </aside>
+    <main class="deskmain">
+      <h2>${titles[tab]}</h2><div class="crumb">Panel de administración familiar</div>
+      <div class="screen">${body}</div>
+    </main>
+  </div>`;
+}
+
+function dHome(){
+  const kids=children();
+  const total=kids.reduce((s,k)=>s+money(k.id).total,0);
+  const pendingVal=S.extras.filter(x=>x.status==="submitted").length+kids.reduce((s,k)=>s+S.fixedTasks.filter(t=>!isDaily(t)).filter(t=>{const st=fixedStateOf(k.id,t.id);return st&&st.status==="submitted";}).length,0);
+  return `
+  <div class="kpis">
+    <div class="kpi"><div class="k">A entregar este mes</div><div class="v" style="color:var(--accent)">${fmt(total)}<small> €</small></div></div>
+    <div class="kpi"><div class="k">Hijos</div><div class="v">${kids.length}</div></div>
+    <div class="kpi"><div class="k">Por validar</div><div class="v">${pendingVal}</div></div>
+    <div class="kpi"><div class="k">Tareas activas</div><div class="v">${S.fixedTasks.length}<small> fijas</small> · ${S.extraTasks.length}<small> extra</small></div></div>
+  </div>
+  ${!S.generated?`<div class="card" style="margin-bottom:20px"><div class="row"><div><h3 style="font-size:16px">Aún no has generado el mes</h3><p class="dim" style="font-size:13px;margin-top:4px">Reparte las tareas fijas y adicionales para empezar.</p></div><span class="spacer"></span><button class="btn primary" onclick="generateMonth()">Generar mes</button></div></div>`:""}
+  <div class="cols">
+    <div class="card">
+      <h3 style="font-size:15px;margin-bottom:6px">Cuánto debes a cada hijo/a</h3>
+      <p class="dim" style="font-size:12px;margin-bottom:12px">Fija si completa ≥75% · adicionales solo con el 100% de las fijas</p>
+      <table><thead><tr><th>Hijo/a</th><th>Fijas</th><th>Fija €/sem</th><th>Extra €/mes</th><th>Total</th></tr></thead><tbody>
+      ${kids.map(k=>{const m=money(k.id);const r=Math.round(m.ratio*100);
+        return `<tr><td><b>${k.name}</b></td>
+          <td><span class="chip" style="${m.ratio>=1?'color:var(--green)':m.ratio>=.75?'color:var(--cyan)':'color:var(--red)'}">${r}%</span></td>
+          <td class="num">${fmt(m.fixedEarned)}</td>
+          <td class="num">${m.canExtra?fmt(m.extraEarned):'<span class="dim">bloqueado</span>'}</td>
+          <td class="num" style="color:var(--accent)">${fmt(m.total)} €</td></tr>`}).join("")}
+      </tbody></table>
+    </div>
+    <div class="card">
+      <h3 style="font-size:15px;margin-bottom:6px">Equilibrio de esfuerzo (adicionales)</h3>
+      <p class="dim" style="font-size:12px;margin-bottom:4px">Se reparte el peso, no el número de tareas.</p>
+      <div class="bal">${kids.map(k=>{const p=extraPointsAssigned(k.id);const max=Math.max(1,...kids.map(c=>extraPointsAssigned(c.id)));
+        return `<div class="col"><div class="bar" style="height:${30+p/max*70}%;background:linear-gradient(180deg,${k.color},${k.color}88)"><span class="v">${p}</span></div><span class="nm">${k.name}</span></div>`}).join("")}</div>
+    </div>
+  </div>
+  ${marketActivityCard()}`;
+}
+
+// Tarjeta de transparencia: qué se ha movido en el mercado entre hermanos.
+function marketActivityCard(){
+  const open=S.listings.filter(l=>l.status==="open");
+  const log=S.marketLog.slice(-6).reverse();
+  if(!open.length && !log.length) return "";
+  const t=id=>extraTask(id);
+  return `<div class="card" style="margin-top:20px">
+    <h3 style="font-size:15px;margin-bottom:4px">Mercado de tareas entre hermanos</h3>
+    <p class="dim" style="font-size:12px;margin-bottom:12px">Solo lectura. Los hijos se organizan; tú validas igualmente quién hace cada tarea.</p>
+    ${open.length?`<div class="sect-title">En venta ahora</div>
+      ${open.map(l=>`<div class="task-line"><div class="tic">${t(l.taskId).icon}</div><div style="flex:1"><b>${esc(t(l.taskId).name)}</b><div class="dim" style="font-size:12px">${member(l.sellerId).name}${l.pointsOffered>0?` · ofrece ${l.pointsOffered} pts`:""}${l.acceptsTrade?" · acepta trueque":""}</div></div><span class="chip p-extra">${t(l.taskId).points} pts</span></div>`).join("")}`:""}
+    ${log.length?`<div class="sect-title" style="margin-top:14px">Operaciones recientes</div>
+      ${log.map(m=>{const desc=m.kind==="take"
+        ?`${member(m.to).name} se quedó <b>${esc(t(m.taskId).name)}</b> de ${member(m.from).name}${m.points>0?` (+${m.points} pts)`:""}`
+        :`${member(m.from).name} ↔ ${member(m.to).name}: <b>${esc(t(m.taskId).name)}</b> por <b>${m.giveTaskId?esc(t(m.giveTaskId).name):"—"}</b>${m.points>0?` (+${m.points} pts)`:""}`;
+        return `<div class="task-line"><div style="flex:1;font-size:13px">${desc}</div></div>`}).join("")}`:""}
+  </div>`;
+}
+
+function dFixed(){
+  return `<div class="card" style="margin-bottom:18px"><div class="row">
+    <div><h3 style="font-size:15px">Lista común de tareas fijas</h3><p class="dim" style="font-size:13px;margin-top:4px">Las mismas para todos los hijos. Base de la paga fija (${fmt(S.fixedPay)} €/semana al completar ≥75%). Marca cada tarea como diaria o semanal.</p></div>
+    <span class="spacer"></span><button class="btn primary sm" onclick="modalAddFixed()">+ Añadir</button></div></div>
+  <div class="card">${S.fixedTasks.map(t=>`<div class="task-line"><div class="tic">${t.icon}</div>
+    <div style="flex:1"><b>${esc(t.name)}</b><div class="dim" style="font-size:12px">${isDaily(t)?"Cada día · 7 por semana":"Una vez por semana"}</div></div>
+    <div class="seg" style="width:180px;flex:none">
+      <button class="${isDaily(t)?"on":""}" onclick="setFixedFreq('${t.id}','daily')">Diaria</button>
+      <button class="${!isDaily(t)?"on":""}" onclick="setFixedFreq('${t.id}','weekly')">Semanal</button>
+    </div>
+    <button class="btn ghost sm" style="color:var(--red)" onclick="delFixed('${t.id}')">✕</button></div>`).join("")||'<div class="empty">Sin tareas fijas.</div>'}</div>`;
+}
+
+function dExtra(){
+  return `<div class="card" style="margin-bottom:18px"><div class="row">
+    <div><h3 style="font-size:15px">Tareas adicionales</h3><p class="dim" style="font-size:13px;margin-top:4px">Dan dinero extra (puntos × ${S.rate} €). Se reparten por peso entre los hijos.</p></div>
+    <span class="spacer"></span><button class="btn primary sm" onclick="modalAddExtra()">+ Añadir</button></div></div>
+  <div class="cols">
+    <div class="card"><h3 style="font-size:14px;margin-bottom:12px">Catálogo</h3>
+      ${S.extraTasks.map(t=>`<div class="task-line"><div class="tic">${t.icon}</div><div style="flex:1"><b>${esc(t.name)}</b></div><span class="pts">${t.points}</span><button class="btn ghost sm" style="color:var(--red)" onclick="delExtra('${t.id}')">✕</button></div>`).join("")}
+    </div>
+    <div class="card"><div class="row" style="margin-bottom:12px"><h3 style="font-size:14px">Reparto actual</h3><span class="spacer"></span><button class="btn sm" onclick="generateMonth()">${S.generated?"Volver a repartir":"Generar"}</button></div>
+      ${S.generated?children().map(k=>{const list=S.extras.filter(x=>x.memberId===k.id);
+        return `<div style="margin-bottom:14px"><div class="row" style="margin-bottom:6px"><b style="color:${k.color}">${k.name}</b><span class="spacer"></span><span class="pts">${extraPointsAssigned(k.id)} pts</span></div>
+        ${list.map(x=>{const t=extraTask(x.taskId);return `<div class="row" style="font-size:13px;padding:4px 0"><span>${t.icon} ${esc(t.name)}</span><span class="spacer"></span><span class="dim num">${t.points}</span></div>`}).join("")}</div>`}).join(""):'<div class="empty">Genera el mes para ver el reparto.</div>'}
+    </div>
+  </div>`;
+}
+
+function dValidate(){
+  const rows=[];
+  children().forEach(k=>{
+    S.fixedTasks.filter(t=>!isDaily(t)).forEach(t=>{ const st=fixedStateOf(k.id,t.id);
+      if(st && (st.status==="submitted"||st.status==="pending")) rows.push({kind:"fixed",childId:k.id,taskId:t.id,status:st.status}); });
+  });
+  S.extras.forEach(x=>{ if(x.status==="submitted"||x.status==="pending") rows.push({kind:"extra",id:x.id,childId:x.memberId,taskId:x.taskId,status:x.status}); });
+  const note=`<p class="dim" style="font-size:13px;margin-bottom:16px">Las tareas <b>diarias</b> (hacer la cama, etc.) las marcan los hijos día a día y no necesitan tu validación. Aquí solo aparecen las <b>semanales</b> y las <b>adicionales</b>.</p>`;
+  if(!rows.length) return note+`<div class="empty">Nada pendiente de validar.</div>`;
+  return note+`<div class="card"><table><thead><tr><th>Tarea</th><th>Hijo/a</th><th>Tipo</th><th>Estado</th><th></th></tr></thead><tbody>
+    ${rows.map(r=>{const t=r.kind==="fixed"?fixedTask(r.taskId):extraTask(r.taskId);
+      const act=r.status==="submitted"
+        ? (r.kind==="fixed"
+            ? `<button class="btn ok sm" onclick="setFixedStatus('${r.childId}','${r.taskId}','approved')">Aprobar</button> <button class="btn sm" onclick="setFixedStatus('${r.childId}','${r.taskId}','pending')">Rechazar</button>`
+            : `<button class="btn ok sm" onclick="setExtraStatus('${r.id}','approved')">Aprobar</button> <button class="btn sm" onclick="setExtraStatus('${r.id}','pending')">Rechazar</button>`)
+        : (r.kind==="fixed"
+            ? `<button class="btn sm" onclick="setFixedStatus('${r.childId}','${r.taskId}','late')">Marcar vencida</button>`
+            : `<button class="btn sm" onclick="setExtraStatus('${r.id}','late')">Marcar vencida</button>`);
+      return `<tr><td>${t.icon} ${esc(t.name)}</td><td>${member(r.childId).name}</td><td><span class="chip ${r.kind==="fixed"?"p-fixed":"p-extra"}">${r.kind==="fixed"?"semanal":"extra "+t.points}</span></td>
+        <td>${r.status==="submitted"?'<span class="pill p-wait">por validar</span>':'<span class="pill p-pending">sin empezar</span>'}</td><td style="text-align:right">${act}</td></tr>`}).join("")}
+  </tbody></table></div>`;
+}
+
+function dMenu(){
+  return `<div class="card" style="margin-bottom:18px"><div class="row">
+    <div><h3 style="font-size:15px">Menú de la semana</h3><p class="dim" style="font-size:13px;margin-top:4px">Edita cada día o genera una semana desde tu base de platos.</p></div>
+    <span class="spacer"></span><button class="btn sm" onclick="regenMenu()">🎲 Generar semana</button></div></div>
+  <div class="cols">
+    <div class="card"><h3 style="font-size:14px;margin-bottom:12px">Días</h3>
+      ${DAYS.map(d=>`<div class="row" style="margin-bottom:10px"><span class="chip" style="width:48px;justify-content:center">${d}</span>
+        <select onchange="setMenu('${d}',this.value)" style="flex:1">${S.dishes.map(dish=>`<option ${S.menu[d]===dish?"selected":""}>${esc(dish)}</option>`).join("")}</select></div>`).join("")}
+    </div>
+    <div class="card"><div class="row" style="margin-bottom:12px"><h3 style="font-size:14px">Base de platos</h3><span class="spacer"></span><button class="btn sm" onclick="modalAddDish()">+ Plato</button></div>
+      ${S.dishes.map(d=>`<div class="task-line" style="padding:8px 0"><span style="flex:1">${esc(d)}</span></div>`).join("")}
+    </div>
+  </div>`;
+}
+
+function dEcon(){
+  return `<div class="cols">
+    <div class="card"><h3 style="font-size:15px;margin-bottom:14px">Parámetros de dinero</h3>
+      <div class="field"><label>Paga fija por semana (€)</label><input id="ecFixed" type="number" step="0.5" value="${S.fixedPay}"></div>
+      <div class="field"><label>Euros por punto en adicionales</label><input id="ecRate" type="number" step="0.01" value="${S.rate}"></div>
+      <button class="btn primary w" onclick="saveEconInline()">Guardar</button>
+      <p class="dim" style="font-size:12px;margin-top:14px">Regla: ≥75% de fijas → cobra la paga fija. 100% de fijas → además gana las adicionales.</p>
+    </div>
+    <div class="card"><h3 style="font-size:15px;margin-bottom:14px">Disponibilidad de cada hijo/a</h3>
+      ${children().map(k=>`<div style="margin-bottom:14px"><div class="row" style="margin-bottom:7px"><b style="color:${k.color}">${k.name}</b></div>
+        <div class="seg">${Object.keys(LOAD_LABEL).map(v=>`<button class="${k.load===v?"on":""}" onclick="setLoad('${k.id}','${v}')">${LOAD_LABEL[v]}</button>`).join("")}</div></div>`).join("")}
+      <button class="btn ghost w sm" style="margin-top:10px;color:var(--faint)" onclick="resetAll()">Reiniciar datos de ejemplo</button>
+    </div>
+    <div class="card">
+      <h3 style="font-size:15px;margin-bottom:6px">Copia de seguridad</h3>
+      <p class="dim" style="font-size:13px;margin-bottom:14px">Guarda de vez en cuando una copia de todo (tareas, puntos, historial) en tu ordenador. Si algún día se pierden los datos, restáurala con un clic.</p>
+      <button class="btn primary w" onclick="downloadBackup()">⬇️ Descargar copia de seguridad</button>
+      <button class="btn w" style="margin-top:10px" onclick="document.getElementById('restoreFile').click()">⬆️ Restaurar desde una copia</button>
+      <input id="restoreFile" type="file" accept="application/json,.json" style="display:none" onchange="restoreBackup(this)">
+      <p class="dim" style="font-size:11px;margin-top:12px">La copia es un archivo que se guarda en tu carpeta de Descargas.</p>
+    </div>
+  </div>`;
+}
+function saveEconInline(){ S.rate=parseFloat($("ecRate").value)||S.rate; S.fixedPay=parseFloat($("ecFixed").value)||S.fixedPay; save(); render(); }
+// Descarga una copia del estado actual desde el servidor.
+function downloadBackup(){
+  const a=document.createElement("a");
+  a.href="/api/backup"; a.download="";
+  document.body.appendChild(a); a.click(); a.remove();
+}
+// Restaura el estado desde un archivo de copia elegido por el usuario.
+function restoreBackup(input){
+  const file=input.files && input.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=async()=>{
+    let data;
+    try{ data=JSON.parse(reader.result); }catch(e){ alert("El archivo no es una copia válida."); return; }
+    if(!data || !Array.isArray(data.members)){ alert("El archivo no parece una copia de esta app."); return; }
+    if(!confirm("Esto reemplazará TODOS los datos actuales por los de la copia. ¿Continuar?")){ input.value=""; return; }
+    try{
+      const r=await fetch("/api/restore",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
+      if(!r.ok) throw 0;
+      S=data; ensureShape(); render();
+      alert("Copia restaurada correctamente.");
+    }catch(e){ alert("No se pudo restaurar. Inténtalo de nuevo."); }
+    input.value="";
+  };
+  reader.readAsText(file);
+}
+
+// Modales escritorio
+function modalAddFixed(){ openModal(`<h3 style="margin-bottom:16px">Nueva tarea fija</h3>
+  <div class="field"><label>Nombre</label><input id="ftName" placeholder="Ej. Tender la cama"></div>
+  <div class="row" style="gap:10px"><div class="field" style="flex:1"><label>Frecuencia</label><select id="ftFreq"><option value="daily">Diaria</option><option value="weekly">Semanal</option></select></div>
+  <div class="field" style="flex:1"><label>Icono</label><select id="ftIcon"><option>🛏️</option><option>🍽️</option><option>🎒</option><option>🧸</option><option>🪥</option><option>👕</option><option>🧺</option><option>🗑️</option></select></div></div>
+  <button class="btn primary w" onclick="addFixed()">Añadir</button>`); }
+function modalAddExtra(){ openModal(`<h3 style="margin-bottom:16px">Nueva tarea adicional</h3>
+  <div class="field"><label>Nombre</label><input id="etName" placeholder="Ej. Limpiar la cocina"></div>
+  <div class="row" style="gap:10px"><div class="field" style="flex:1"><label>Esfuerzo (pts)</label><input id="etPts" type="number" value="20"></div>
+  <div class="field" style="flex:1"><label>Icono</label><select id="etIcon"><option>🧽</option><option>🧹</option><option>🧺</option><option>🗑️</option><option>🐕</option><option>🌱</option></select></div></div>
+  <button class="btn primary w" onclick="addExtra()">Añadir</button>`); }
+function modalAddDish(){ openModal(`<h3 style="margin-bottom:16px">Nuevo plato</h3>
+  <div class="field"><label>Nombre del plato</label><input id="dishName" placeholder="Ej. Curry de garbanzos"></div>
+  <button class="btn primary w" onclick="addDish()">Añadir a la base</button>`); }
+function openModal(h){ $("modal").innerHTML=h; $("modalBg").classList.add("open"); }
+function closeModal(){ $("modalBg").classList.remove("open"); }
+
+// =========================================================================
+//  VISTA MÓVIL — HIJO
+// =========================================================================
+const MOB_NAV=[["home","Inicio","home"],["market","Mercado","swap"],["achieve","Logros","trophy"],["menu","Menú","fork"],["rewards","Premios","gift"]];
+
+function renderMob(){
+  const me=member(S.profile);
+  const lv=levelOf(me.id);
+  const av=`<div class="avatar" style="width:44px;height:44px;background:${me.color}22;color:${me.color}">${me.name[0]}</div>`;
+  const body=({home:mHome,market:mMarket,achieve:mAchieve,menu:mMenu,rewards:mRewards}[S.mobTab]||mHome)();
+  $("mob").innerHTML=`<div class="phone">
+    <div class="head">${av}<div><h1>Hola, ${me.name}</h1><div class="sub">Nivel ${lv.level} · ${lv.points} pts este mes</div></div>
+      <button class="icon-btn" onclick="mobSwitchUser()">${svg("users")}</button></div>
+    <div class="screen">${body}</div>
+  </div>
+  <div class="nav">${MOB_NAV.map(([t,l,ic])=>`<button class="${S.mobTab===t?"on":""}" onclick="setMobTab('${t}')">${svg(ic)}<span>${l}</span></button>`).join("")}</div>`;
+}
+
+function mHome(){
+  const me=member(S.profile); const m=money(me.id); const lv=levelOf(me.id);
+  const doneU=fixedApprovedUnits(me.id), totU=fixedTotalUnits(me.id);
+  const extras=S.extras.filter(x=>x.memberId===me.id);
+  return `
+  <div class="hero"><div class="row">
+    <div><div class="label">Ganado este mes</div><div class="big">${fmt(m.total)}<small> €</small></div></div>
+    <span class="spacer"></span><div class="ring" style="--pct:${lv.into}"><div class="inner">Lv${lv.level}</div></div>
+  </div>
+  <div class="row" style="margin-top:14px;gap:8px;flex-wrap:wrap">
+    <span class="pill" style="background:rgba(255,194,75,.16);color:var(--amber)">🔥 ${S.streak[me.id]||0} días</span>
+    <span class="pill ${m.fixedEarned>0?'p-ok':'p-late'}">Paga fija ${m.fixedEarned>0?'✓':'en riesgo'}</span>
+    <span class="pill ${m.canExtra?'p-extra':'p-pending'}">Extras ${m.canExtra?'desbloqueadas':'al 100% de fijas'}</span>
+  </div></div>
+
+  <div class="mcard">
+    <div class="row" style="margin-bottom:8px"><b>Tus tareas fijas (esta semana)</b><span class="spacer"></span><span class="dim num" style="font-size:13px">${doneU}/${totU}</span></div>
+    <div class="progress"><span style="width:${totU?doneU/totU*100:0}%;background:${m.ratio>=1?'var(--green)':m.ratio>=.75?'var(--cyan)':'var(--red)'}"></span></div>
+    <p class="dim" style="font-size:12px;margin-top:8px">${m.ratio>=1?'¡Todo al día! Ya puedes ganar con las adicionales.':m.ratio>=.75?'Paga fija asegurada. Complétalas todas para desbloquear las extras.':'Llega al 75% para asegurar tu paga fija.'}</p>
+  </div>
+  ${S.generated?S.fixedTasks.map(t=>fixedCardMob(t,me.id)).join(""):`<div class="empty">El mes aún no está repartido.</div>`}
+
+  ${extras.length?`<div class="sect-title" style="margin-top:18px">Adicionales (dinero extra)</div>
+    ${extras.map(x=>extraRowMob(x,me.id)).join("")}`:""}`;
+}
+// Tarjeta de tarea fija en el móvil: diaria (7 casillas) o semanal (validación)
+function fixedCardMob(t,meId){
+  const st=fixedStateOf(meId,t.id)||{};
+  if(isDaily(t)){
+    const days=st.days||[false,false,false,false,false,false,false];
+    const ti=todayIdx(); const done=days.filter(Boolean).length;
+    return `<div class="mcard"><div class="row" style="margin-bottom:10px">
+      <div class="tic" style="width:38px;height:38px;font-size:17px">${t.icon}</div>
+      <div style="flex:1"><b>${esc(t.name)}</b><div class="dim" style="font-size:11px">Diaria · ${done}/7 días${done===7?' ✓':''}</div></div></div>
+      <div style="display:flex;gap:6px">${days.map((d,i)=>`<button onclick="toggleFixedDay('${meId}','${t.id}',${i})" style="flex:1;aspect-ratio:1;border-radius:11px;border:1.5px solid ${d?'var(--green)':'var(--line)'};background:${d?'var(--green)':'#fff'};color:${d?'#fff':'var(--dim)'};font-weight:800;font-size:12px;font-family:var(--num);${i===ti?'box-shadow:0 0 0 2.5px var(--accent)':''}">${DAYLBL[i]}</button>`).join("")}</div>
+    </div>`;
+  }
+  // Semanal: pasa por validación del padre
+  const status=st.status||"pending";
+  const lbl={pending:"Toca a ti",submitted:"Esperando visto bueno",approved:"Hecha ✓",late:"Vencida"}[status];
+  const cls={pending:"p-pending",submitted:"p-wait",approved:"p-ok",late:"p-late"}[status];
+  return `<div class="task ${status==="approved"?"approved":""}"><div class="tic" style="width:40px;height:40px;border-radius:11px;background:var(--card2);display:grid;place-items:center;font-size:18px">${t.icon}</div>
+    <div style="flex:1"><div class="tname">${esc(t.name)}</div><div class="tsub"><span class="pill p-fixed" style="margin-right:5px">semanal</span><span class="pill ${cls}">${lbl}</span></div></div>
+    <div style="text-align:right">${status==="pending"?`<button class="btn ok sm" onclick="setFixedStatus('${meId}','${t.id}','submitted')">Hecha</button>`:""}</div></div>`;
+}
+// Fila de tarea fija (no afectada por el mercado)
+function taskRowMob(t,status,onMark,kind){
+  const lbl={pending:"Toca a ti",submitted:"Esperando visto bueno",approved:"Aprobada ✓",late:"Vencida"}[status];
+  const cls={pending:"p-pending",submitted:"p-wait",approved:"p-ok",late:"p-late"}[status];
+  const pts=kind==="extra"?`+${t.points}`:"";
+  return `<div class="task ${status==="approved"?"approved":""}"><div class="tic" style="width:40px;height:40px;border-radius:11px;background:var(--card2);display:grid;place-items:center;font-size:18px">${t.icon}</div>
+    <div style="flex:1"><div class="tname">${esc(t.name)}</div><div class="tsub"><span class="pill ${cls}">${lbl}</span></div></div>
+    <div style="text-align:right">${pts?`<div class="pts">${pts}</div>`:""}
+    ${status==="pending"?`<button class="btn ok sm" style="margin-top:6px" onclick="${onMark()}">Hecha</button>`:""}</div></div>`;
+}
+// Fila de tarea adicional (puede estar en venta o tener prima de mercado)
+function extraRowMob(x,meId){
+  const t=extraTask(x.taskId);
+  const lbl={pending:"Toca a ti",submitted:"Esperando visto bueno",approved:"Aprobada ✓",late:"Vencida"}[x.status];
+  const cls={pending:"p-pending",submitted:"p-wait",approved:"p-ok",late:"p-late"}[x.status];
+  // Prima de mercado pactada sobre esta tarea
+  let bounty="";
+  if(x.bounty){
+    if(x.bounty.to===meId) bounty=`<div class="dim" style="font-size:11px;color:var(--green)">+${x.bounty.points} pts de mercado</div>`;
+    else if(x.bounty.from===meId) bounty=`<div class="dim" style="font-size:11px;color:var(--red)">−${x.bounty.points} pts de mercado</div>`;
+  }
+  return `<div class="task ${x.status==="approved"?"approved":""}"><div class="tic" style="width:40px;height:40px;border-radius:11px;background:var(--card2);display:grid;place-items:center;font-size:18px">${t.icon}</div>
+    <div style="flex:1"><div class="tname">${esc(t.name)}</div>
+      <div class="tsub">${x.listed?`<span class="pill p-extra">🏷️ en el mercado</span>`:`<span class="pill ${cls}">${lbl}</span>`}</div>${bounty}</div>
+    <div style="text-align:right"><div class="pts">+${t.points}</div>
+    ${x.status==="pending"&&!x.listed?`<button class="btn ok sm" style="margin-top:6px" onclick="setExtraStatus('${x.id}','submitted')">Hecha</button>`:""}
+    ${x.listed?`<button class="btn ghost sm" style="margin-top:6px;color:var(--red)" onclick="cancelListingByAssignment('${x.id}')">Retirar</button>`:""}</div></div>`;
+}
+// Atajo: retirar del mercado desde la pantalla de inicio
+function cancelListingByAssignment(assignmentId){
+  const l=S.listings.find(x=>x.assignmentId===assignmentId && x.status==="open");
+  if(l) cancelListing(l.id);
+}
+
+// ===================== VISTA MERCADO (HIJO) =====================
+function mMarket(){
+  const me=member(S.profile);
+  if(!S.generated) return `<div class="empty">El mes aún no está repartido.<br>Cuando tus padres asignen las tareas adicionales, podrás venderlas o cambiarlas aquí.</div>`;
+
+  const sellable=S.extras.filter(x=>x.memberId===me.id && x.status==="pending" && !x.listed);
+  const myListings=S.listings.filter(l=>l.sellerId===me.id && l.status==="open");
+  const incoming=S.offers.filter(o=>o.status==="pending" && S.listings.some(l=>l.id===o.listingId && l.sellerId===me.id && l.status==="open"));
+  const board=S.listings.filter(l=>l.status==="open" && l.sellerId!==me.id);
+  const log=S.marketLog.slice(-6).reverse();
+  const t=id=>extraTask(id);
+
+  let html=`<p class="dim" style="font-size:13px;margin:0 4px 16px">Vende una tarea ofreciendo puntos a quien la haga, o cámbiala por otra. Os organizáis entre vosotros.</p>`;
+
+  // --- Ofertas de trueque recibidas ---
+  if(incoming.length){
+    html+=`<div class="sect-title">📥 Te han ofrecido un trueque</div>`;
+    incoming.forEach(o=>{
+      const l=S.listings.find(x=>x.id===o.listingId);
+      html+=`<div class="mcard" style="border-color:var(--violet)">
+        <div class="row"><span class="pill p-extra">trueque</span><span class="spacer"></span><span class="dim" style="font-size:12px">de ${member(o.bidderId).name}</span></div>
+        <div style="margin:10px 0;font-size:14px;font-weight:700">${member(o.bidderId).name} hará tu <b>${t(l.taskId).icon} ${esc(t(l.taskId).name)}</b></div>
+        <div class="row" style="font-size:13px"><span class="dim">A cambio tú harás:</span><span class="spacer"></span><span>${t(o.offeredTaskId).icon} ${esc(t(o.offeredTaskId).name)} <span class="pts">${t(o.offeredTaskId).points}</span></span></div>
+        ${o.pointsAsked>0?`<div class="row" style="font-size:13px;margin-top:6px"><span class="dim">Te pide además:</span><span class="spacer"></span><span class="pts">${o.pointsAsked} pts</span></div>`:""}
+        <div class="row" style="gap:8px;margin-top:12px">
+          <button class="btn ok sm" style="flex:1" onclick="acceptOffer('${o.id}')">Aceptar</button>
+          <button class="btn sm" style="flex:1" onclick="rejectOffer('${o.id}')">Rechazar</button>
+        </div></div>`;
+    });
+  }
+
+  // --- Mis anuncios activos ---
+  if(myListings.length){
+    html+=`<div class="sect-title" style="margin-top:18px">🏷️ Tus anuncios</div>`;
+    myListings.forEach(l=>{
+      const offs=S.offers.filter(o=>o.listingId===l.id && o.status==="pending");
+      html+=`<div class="mcard"><div class="row">
+        <div class="tic" style="width:38px;height:38px;font-size:17px">${t(l.taskId).icon}</div>
+        <div style="flex:1"><div style="font-weight:800">${esc(t(l.taskId).name)}</div>
+          <div class="dim" style="font-size:12px">${l.pointsOffered>0?`Ofreces ${l.pointsOffered} pts`:""}${l.pointsOffered>0&&l.acceptsTrade?" · ":""}${l.acceptsTrade?"Acepta trueque":""}</div></div>
+        <span class="pts">${t(l.taskId).points}</span></div>
+        <div class="row" style="margin-top:10px"><span class="dim" style="font-size:12px">${offs.length?offs.length+" oferta(s) de trueque":"Aún sin ofertas"}</span>
+        <span class="spacer"></span><button class="btn ghost sm" style="color:var(--red)" onclick="cancelListing('${l.id}')">Retirar</button></div></div>`;
+    });
+  }
+
+  // --- Tablón de anuncios de los hermanos ---
+  html+=`<div class="sect-title" style="margin-top:18px">🛒 Tablón de la familia</div>`;
+  if(!board.length){
+    html+=`<div class="empty" style="padding:18px">Nadie ha puesto tareas ahora mismo.</div>`;
+  }else{
+    board.forEach(l=>{
+      html+=`<div class="mcard"><div class="row">
+        <div class="tic" style="width:42px;height:42px;font-size:19px">${t(l.taskId).icon}</div>
+        <div style="flex:1"><div style="font-weight:800">${esc(t(l.taskId).name)}</div>
+          <div class="dim" style="font-size:12px">de ${member(l.sellerId).name} · esfuerzo ${t(l.taskId).points}</div></div>
+        ${l.pointsOffered>0?`<div style="text-align:right"><div class="pts">+${l.pointsOffered}</div><div class="dim" style="font-size:10px">pts extra</div></div>`:""}</div>
+        ${l.note?`<div class="dim" style="font-size:12px;margin-top:8px;font-style:italic">"${esc(l.note)}"</div>`:""}
+        <div class="row" style="gap:8px;margin-top:12px">
+          ${l.pointsOffered>0?`<button class="btn primary sm" style="flex:1" onclick="confirmTake('${l.id}')">Me la quedo (+${l.pointsOffered})</button>`:`<button class="btn primary sm" style="flex:1" onclick="confirmTake('${l.id}')">Me la quedo</button>`}
+          ${l.acceptsTrade?`<button class="btn sm" style="flex:1" onclick="sheetTrade('${l.id}')">Ofrecer trueque</button>`:""}
+        </div></div>`;
+    });
+  }
+
+  // --- Mis tareas para poner en venta ---
+  html+=`<div class="sect-title" style="margin-top:18px">📦 Tus tareas adicionales</div>`;
+  if(!sellable.length){
+    html+=`<div class="empty" style="padding:18px">No tienes tareas adicionales libres para vender.</div>`;
+  }else{
+    sellable.forEach(x=>{
+      html+=`<div class="task"><div class="tic" style="width:40px;height:40px;font-size:18px">${t(x.taskId).icon}</div>
+        <div style="flex:1"><div class="tname">${esc(t(x.taskId).name)}</div><div class="tsub">${t(x.taskId).points} pts de esfuerzo</div></div>
+        <button class="btn sm" onclick="sheetPublish('${x.id}')">Vender / cambiar</button></div>`;
+    });
+  }
+
+  // --- Historial ---
+  if(log.length){
+    html+=`<div class="sect-title" style="margin-top:18px">🧾 Movimientos recientes</div>`;
+    log.forEach(m=>{
+      const desc = m.kind==="take"
+        ? `${member(m.to).name} se quedó <b>${t(m.taskId).icon} ${esc(t(m.taskId).name)}</b> de ${member(m.from).name}${m.points>0?` (+${m.points} pts)`:""}`
+        : `${member(m.from).name} y ${member(m.to).name} cambiaron <b>${t(m.taskId).icon}</b> ↔ <b>${m.giveTaskId?t(m.giveTaskId).icon:""}</b>${m.points>0?` (+${m.points} pts)`:""}`;
+      html+=`<div class="mcard" style="padding:11px 14px"><div style="font-size:13px">${desc}</div></div>`;
+    });
+  }
+
+  return html;
+}
+
+// Confirmar "me la quedo"
+function confirmTake(listingId){
+  const l=S.listings.find(x=>x.id===listingId); if(!l)return;
+  const t=extraTask(l.taskId);
+  openSheet(`<h3 style="margin-bottom:8px">¿Te quedas esta tarea?</h3>
+    <div class="mcard" style="margin-top:4px"><div class="row"><div class="tic">${t.icon}</div>
+      <div style="flex:1"><div style="font-weight:800">${esc(t.name)}</div><div class="dim" style="font-size:12px">de ${member(l.sellerId).name}</div></div></div>
+      <div class="row" style="margin-top:10px;font-size:13px"><span class="dim">Ganarás al completarla</span><span class="spacer"></span><span class="pts">${t.points}${l.pointsOffered>0?` + ${l.pointsOffered}`:""} pts</span></div></div>
+    <button class="btn primary w" style="margin-top:6px" onclick="takeListing('${listingId}','${S.profile}')">Sí, me la quedo</button>`);
+}
+
+// Hoja para publicar una tarea
+function sheetPublish(assignmentId){
+  const x=S.extras.find(e=>e.id===assignmentId); const t=extraTask(x.taskId);
+  openSheet(`<h3 style="margin-bottom:4px">Poner en el mercado</h3>
+    <div class="dim" style="font-size:13px;margin-bottom:16px">${t.icon} ${esc(t.name)} · ${t.points} pts de esfuerzo</div>
+    <div class="field"><label>Puntos extra que ofreces a quien la haga</label><input id="plPoints" type="number" min="0" value="0" inputmode="numeric"></div>
+    <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;font-weight:700;font-size:14px;cursor:pointer">
+      <input id="plTrade" type="checkbox" checked style="width:auto;transform:scale(1.3)"> Aceptar también ofertas de trueque</label>
+    <div class="field"><label>Nota (opcional)</label><input id="plNote" placeholder="Ej. esta semana no puedo, ¿alguien?"></div>
+    <button class="btn primary w" onclick="publishListing('${assignmentId}')">Publicar</button>`);
+}
+
+// Hoja para ofrecer un trueque
+function sheetTrade(listingId){
+  const l=S.listings.find(x=>x.id===listingId); const t=extraTask(l.taskId);
+  const me=member(S.profile);
+  const mine=S.extras.filter(x=>x.memberId===me.id && x.status==="pending" && !x.listed);
+  if(!mine.length){ openSheet(`<h3 style="margin-bottom:10px">Sin tareas para cambiar</h3><p class="dim" style="font-size:14px">No tienes tareas adicionales libres que ofrecer a cambio.</p><button class="btn w" onclick="closeSheet()">Entendido</button>`); return; }
+  openSheet(`<h3 style="margin-bottom:4px">Ofrecer un trueque</h3>
+    <div class="dim" style="font-size:13px;margin-bottom:16px">Quieres la <b>${t.icon} ${esc(t.name)}</b> de ${member(l.sellerId).name}</div>
+    <div class="field"><label>¿Qué tarea tuya ofreces a cambio?</label>
+      <select id="toTask">${mine.map(x=>`<option value="${x.id}">${extraTask(x.taskId).icon} ${esc(extraTask(x.taskId).name)} (${extraTask(x.taskId).points} pts)</option>`).join("")}</select></div>
+    <div class="field"><label>Puntos que pides además (si su tarea es más pesada)</label><input id="toPoints" type="number" min="0" value="0" inputmode="numeric"></div>
+    <button class="btn primary w" onclick="submitTradeOffer('${listingId}','${S.profile}')">Enviar oferta</button>`);
+}
+
+function mAchieve(){
+  const me=member(S.profile); const lv=levelOf(me.id);
+  const fixedDone=fixedApprovedUnits(me.id);
+  const extraDone=S.extras.filter(x=>x.memberId===me.id&&x.status==="approved").length;
+  const prev=S.history[Object.keys(S.history).sort().pop()]; // último mes archivado
+  const prevPts=prev?prev.points[me.id]:null;
+  const badges=[
+    {e:"🎯",l:"1ª tarea",on:fixedDone+extraDone>=1},{e:"🔥",l:"Racha 3",on:(S.streak[me.id]||0)>=3},
+    {e:"✅",l:"Fijas 100%",on:fixedRatio(me.id)>=1},{e:"⭐",l:"Nivel 2",on:lv.level>=2},
+    {e:"💪",l:"Extra x3",on:extraDone>=3},{e:"🤝",l:"Trato justo",on:S.marketLog.some(s=>s.from===me.id||s.to===me.id)},
+    {e:"💎",l:"100 pts",on:lv.points>=100},{e:"🏆",l:"Nivel 5",on:lv.level>=5},
+  ];
+  return `<div class="mcard" style="background:linear-gradient(160deg,#fff,#fff0df);border-color:#ffe1bd"><div class="row">
+    <div class="ring" style="--pct:${lv.into};width:72px;height:72px"><div class="inner" style="width:58px;height:58px;font-size:16px">Lv${lv.level}</div></div>
+    <div style="margin-left:14px"><div style="font-weight:600;font-size:17px">Nivel ${lv.level}</div>
+    <div class="dim" style="font-size:13px">${lv.into}/100 pts para el siguiente</div>
+    <div class="pill" style="margin-top:8px;background:rgba(255,194,75,.16);color:var(--amber)">🔥 Racha de ${S.streak[me.id]||0} días</div></div></div></div>
+  <div class="mcard">
+    <div class="row"><b style="font-size:14px">Tu trabajo este mes</b></div>
+    <div class="row" style="margin-top:10px"><span class="dim" style="font-size:13px">Puntos acumulados</span><span class="spacer"></span><span class="pts" style="font-size:18px">${lv.points}</span></div>
+    ${prevPts!=null?`<div class="row" style="margin-top:6px"><span class="dim" style="font-size:13px">Mes anterior</span><span class="spacer"></span><span class="num dim">${prevPts}</span></div>
+      <p class="dim" style="font-size:11px;margin-top:8px">El nivel se reinicia cada mes: refleja cuánto has trabajado este mes.</p>`:`<p class="dim" style="font-size:11px;margin-top:8px">El nivel se reinicia el día 1 de cada mes.</p>`}
+  </div>
+  <div class="sect-title">Logros</div>
+  <div class="badges">${badges.map(b=>`<div class="badge ${b.on?"":"locked"}">${b.e}<div class="l">${b.l}</div></div>`).join("")}</div>`;
+}
+
+function mMenu(){
+  const idx=(new Date().getDay()+6)%7; // 0=Lun
+  const today=DAYS[idx]; const dish=S.menu[today];
+  return `${dish?`<div class="hero"><div class="label">Hoy se cocina</div><div style="font-size:24px;font-weight:600;margin-top:6px">${esc(dish)}</div></div>`:""}
+  <div class="mcard"><b style="font-size:14px">Toda la semana</b><div style="margin-top:8px">
+    ${DAYS.map(d=>`<div class="day"><span class="dn">${d}</span><span>${esc(S.menu[d]||"—")}</span></div>`).join("")}</div></div>`;
+}
+
+function mRewards(){
+  const me=member(S.profile); const pts=levelOf(me.id).points;
+  return `<div class="mcard" style="background:linear-gradient(160deg,#fff,#fff0df)"><div class="row"><span class="dim" style="font-size:13px">Tienes</span><span class="spacer"></span><span class="pts" style="font-size:22px">${pts} pts</span></div></div>
+  ${S.rewards.map(r=>{const can=pts>=r.cost;
+    return `<div class="mcard"><div class="row"><div><div style="font-weight:500">${esc(r.title)}</div><div class="dim" style="font-size:12px">${r.type}</div></div><span class="spacer"></span><span class="pts">${r.cost}</span></div>
+    <button class="btn ${can?"primary":""} w sm" style="margin-top:12px${can?"":";opacity:.45"}" ${can?`onclick="sheetRedeem('${r.id}')"`:"disabled"}>${can?"Canjear":"Te faltan puntos"}</button></div>`}).join("")}`;
+}
+function sheetRedeem(id){const r=S.rewards.find(x=>x.id===id);
+  openSheet(`<h3 style="margin-bottom:10px">Canjear premio</h3>
+    <p class="dim" style="font-size:14px;margin-bottom:18px">Vas a pedir "<b style="color:var(--text)">${esc(r.title)}</b>" por ${r.cost} pts. Tus padres recibirán la solicitud para aprobarla.</p>
+    <button class="btn primary w" onclick="closeSheet()">Enviar solicitud</button>`); }
+function mobSwitchUser(){
+  openSheet(`<h3 style="margin-bottom:16px">Cambiar de hijo/a</h3>
+    ${children().map(c=>`<button class="btn ${S.profile===c.id?"primary":""} w" style="margin-bottom:10px" onclick="setProfile('${c.id}')">${c.name}</button>`).join("")}
+    <p class="dim" style="font-size:12px;text-align:center;margin-top:6px">(En la app real, cada hijo entra con su propia cuenta.)</p>`); }
+
+// Sheet helpers
+function openSheet(h){ $("sheet").innerHTML=`<div class="grab"></div>${h}`; $("sheet").classList.add("open"); $("sheetBg").classList.add("open"); }
+function closeSheet(){ $("sheet").classList.remove("open"); $("sheetBg").classList.remove("open"); }
+
+
+// =========================================================================
+//  RENDER PRINCIPAL
+// =========================================================================
+function renderModebar(){
+  const who = S.view==="desk" ? "🖥️ Padre / madre" : ("📱 "+(member(S.profile)?member(S.profile).name:"Hijo/a"));
+  $("modebar").innerHTML=`<span style="font-weight:800">🏠 Casa</span>
+    <span class="dim" style="font-size:12px">· ${who}</span>
+    <span class="spacer"></span>
+    <span class="dim" style="font-size:12px">${monthName(S.currentMonth)}</span>
+    <span id="connDot" title="Conectado" style="width:9px;height:9px;border-radius:50%;background:var(--green);display:inline-block;margin:0 4px 0 8px"></span>
+    <button class="btn ghost sm" style="padding:5px 10px" onclick="renderIdentityPicker()">Cambiar</button>`;
+}
+function render(){
+  rollover();
+  ensureWeek();
+  renderModebar();
+  if(S.view==="desk"){
+    $("desk").style.display="block"; $("mob").style.display="none";
+    renderDesk();
+  }else{
+    $("desk").style.display="none"; $("mob").style.display="block";
+    if(S.profile==="parent") S.profile=children()[0].id; // móvil = hijo
+    renderMob();
+  }
+}
+// ============== ARRANQUE Y SINCRONIZACIÓN ==============
+// Carga el estado del servidor. Si está vacío, el servidor devuelve la semilla.
+async function bootstrap(){
+  try{
+    const r=await fetch("/api/state");
+    if(!r.ok) throw new Error("http "+r.status);
+    S=await r.json();
+    showConn(true);
+    ensureShape();
+    // ¿Este dispositivo ya eligió quién es? Si no, preguntar.
+    let role=null;
+    try{ role=JSON.parse(localStorage.getItem(ROLE_KEY)||"null"); }catch(e){}
+    if(role && (role.view==="desk" || (role.profile && member(role.profile)))){
+      S.view=role.view; S.profile=role.profile;
+      render();
+    }else{
+      renderIdentityPicker(); // primera vez en este dispositivo
+    }
+    startPolling();
+  }catch(e){
+    document.getElementById("desk").innerHTML='<div style="max-width:520px;margin:80px auto;padding:24px" class="card"><h3>No se pudo conectar con el servidor</h3><p class="dim">Comprueba tu conexión a internet e inténtalo de nuevo. Si acabas de desplegar la app, espera un minuto (el servidor gratuito tarda en despertar) y recarga la página.</p><button class="btn primary" onclick="location.reload()">Reintentar</button></div>';
+    document.getElementById("desk").style.display="block";
+  }
+}
+// Recuerda el rol localmente cada vez que cambia
+function rememberRole(){ try{ localStorage.setItem(ROLE_KEY,JSON.stringify({view:S.view,profile:S.profile})); }catch(e){} }
+
+// Pantalla de bienvenida: ¿quién usa este dispositivo? (una vez por dispositivo)
+function renderIdentityPicker(){
+  $("mob").style.display="none";
+  $("desk").style.display="block";
+  const kids=children();
+  $("desk").innerHTML=`<div style="max-width:560px;margin:8vh auto;padding:0 20px">
+    <div style="text-align:center;margin-bottom:26px">
+      <div style="font-size:54px">🏠</div>
+      <h1 style="font-size:28px;margin-top:8px">Tareas en familia</h1>
+      <p class="dim" style="font-size:15px;margin-top:6px">¿Quién va a usar este dispositivo?</p>
+    </div>
+    <div class="card" style="cursor:pointer;margin-bottom:14px;display:flex;align-items:center;gap:16px" onclick="chooseIdentity('desk')">
+      <div class="avatar" style="width:52px;height:52px;background:linear-gradient(150deg,var(--accent),var(--sun));font-size:24px">🖥️</div>
+      <div><div style="font-weight:800;font-size:17px">Soy padre / madre</div><div class="dim" style="font-size:13px">Panel de control (ideal en el ordenador)</div></div>
+    </div>
+    ${kids.map(c=>`<div class="card" style="cursor:pointer;margin-bottom:14px;display:flex;align-items:center;gap:16px" onclick="chooseIdentity('child','${c.id}')">
+      <div class="avatar" style="width:52px;height:52px;background:${c.color}22;color:${c.color};font-size:22px">${c.name[0]}</div>
+      <div><div style="font-weight:800;font-size:17px">Soy ${c.name}</div><div class="dim" style="font-size:13px">Mis tareas y mi monedero (en el móvil)</div></div>
+    </div>`).join("")}
+    <p class="dim" style="font-size:12px;text-align:center;margin-top:18px">Podrás cambiarlo luego con el botón de usuario.</p>
+  </div>`;
+}
+function chooseIdentity(kind, childId){
+  if(kind==="desk"){ S.view="desk"; S.profile="parent"; }
+  else { S.view="mob"; S.profile=childId; }
+  S.deskTab="home"; S.mobTab="home";
+  rememberRole(); render();
+}
+
+// Sondeo: trae cambios hechos en otros dispositivos cada 4 s.
+let _poll=null;
+function startPolling(){
+  clearInterval(_poll);
+  _poll=setInterval(async()=>{
+    // no pisar justo después de que ESTE dispositivo haya guardado
+    if(Date.now()-_lastSent<1500) return;
+    try{
+      const r=await fetch("/api/state"); if(!r.ok) throw 0;
+      const remote=await r.json();
+      showConn(true);
+      // preserva el rol local; adopta el resto del estado remoto si cambió
+      const localView=S.view, localProfile=S.profile;
+      const remoteStr=JSON.stringify(stripRole(remote));
+      if(remoteStr!==JSON.stringify(stripRole(S))){
+        S=remote; S.view=localView; S.profile=localProfile;
+        ensureShape(); render();
+      }
+    }catch(e){ showConn(false); }
+  },4000);
+}
+function stripRole(o){ const c={...o}; delete c.view; delete c.profile; return c; }
+
+bootstrap();
+
+</script>
+</body>
+</html>
