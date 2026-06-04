@@ -50,36 +50,23 @@ router.post("/register", registerLimiter, async (req, res) => {
     if (exists.rowCount) return res.status(409).json({ error: "email_ya_registrado" });
 
     const pwdHash = await hashPassword(password);
-    const verifyHours = parseInt(process.env.VERIFY_TOKEN_EXPIRES_HOURS || "24", 10);
-    const { raw: rawToken, hash: tokenHash } = generateOpaqueToken();
 
+    // Verificación de email desactivada temporalmente:
+    // email_verified_at se marca automáticamente al crear la cuenta.
+    // Cuando se reactive, quitar el campo email_verified_at del INSERT.
     await tx(async (c) => {
-      const u = await c.query(
-        "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id",
+      const ins = await c.query(
+        "INSERT INTO users (email, password_hash, email_verified_at) VALUES ($1, $2, now()) RETURNING id",
         [email, pwdHash]
       );
-      const uid = u.rows[0].id;
+      const uid = ins.rows[0].id;
       await c.query(
         "INSERT INTO user_profiles (user_id, display_name) VALUES ($1, $2)",
         [uid, displayName]
       );
-      await c.query(
-        `INSERT INTO email_verification_tokens (user_id, token_hash, expires_at)
-         VALUES ($1, $2, now() + ($3 || ' hours')::interval)`,
-        [uid, tokenHash, String(verifyHours)]
-      );
     });
 
-    const appUrl = (process.env.APP_URL || "").replace(/\/$/, "");
-    const link = `${appUrl}/#/verify?token=${rawToken}`;
-    const emailResult = await emailService.sendVerificationEmail({ to: email, displayName, verifyUrl: link });
-
-    res.status(201).json({
-      ok: true,
-      requiresEmailVerification: true,
-      emailSent: emailResult.ok === true,
-      emailDev: emailResult.dev === true, // true si imprimió en consola
-    });
+    res.status(201).json({ ok: true, emailSent: false, emailDev: false });
   } catch (e) {
     console.error("[auth/register]", e);
     res.status(500).json({ error: "error_servidor" });
@@ -180,9 +167,11 @@ router.post("/login", loginLimiter, async (req, res) => {
     const ok = await comparePassword(password, u.password_hash);
     if (!ok) return res.status(401).json({ error: "credenciales_invalidas" });
 
-    if (!u.email_verified_at) {
-      return res.status(403).json({ error: "email_no_verificado" });
-    }
+    // Verificación de email desactivada temporalmente.
+    // Para reactivarla: descomentar el bloque siguiente y restaurar emailService.
+    // if (!u.email_verified_at) {
+    //   return res.status(403).json({ error: "email_no_verificado" });
+    // }
 
     const token = signJwt({
       sub: u.id, role: u.role || null, familyId: u.family_id || null,

@@ -46,10 +46,10 @@ async function requireAuth(req, res, next) {
   }
 }
 
+// Verificación de email desactivada temporalmente (passthrough).
+// Para reactivar: restaurar el original desde _email_disabled/README.md
 function requireEmailVerified(req, res, next) {
-  if (!req.user) return res.status(401).json({ error: "no_autenticado" });
-  if (!req.user.emailVerified) return res.status(403).json({ error: "email_no_verificado" });
-  next();
+  next(); // STUB: sin bloqueo de email
 }
 
 function requireOnboarded(req, res, next) {

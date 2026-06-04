@@ -1198,8 +1198,8 @@ async function bootstrap(){
     return Auth.show("login");
   }
 
-  // Autenticado pero sin email verificado
-  if (!ME.emailVerified) return Auth.show("verify-pending");
+  // Verificación de email desactivada temporalmente — no bloquear aquí.
+  // Para reactivar: añadir: if (!ME.emailVerified) return Auth.show("verify-pending");
 
   // Si llega a aceptar invitación con sesión activa:
   if (path === "invite") return Auth.handleInviteWithSession(urlParam("token"));
@@ -1396,40 +1396,15 @@ const Auth = {
       await _consumePendingInvite();
       bootstrap();
     }
-    catch(e){
-      if(e.message==="email_no_verificado"){
-        // Mostrar error + botón para reenviar verificación
-        const el=document.getElementById("authErr");
-        if(el){
-          el.innerHTML=Auth.errKey("email_no_verificado")+
-            ` <button onclick="Auth._resendFromLogin('${esc(email)}')" style="margin-left:10px;font-weight:700;color:var(--accent);background:none;border:none;cursor:pointer;font-size:13px;text-decoration:underline">Reenviar email</button>`;
-          el.style.display="block";
-        }
-      } else {
-        Auth.err(Auth.errKey(e.message));
-      }
-    }
-  },
-  async _resendFromLogin(email){
-    if(!email){ return; }
-    try {
-      await api("/api/auth/resend-verify",{method:"POST",body:{email}});
-      alert("Email de verificación reenviado a "+email+". Revisa tu bandeja (y spam).");
-    } catch(ex){ Auth.err("No se pudo reenviar. Inténtalo de nuevo."); }
+    catch(e){ Auth.err(Auth.errKey(e.message)); }
   },
   async doRegister(){
     const email=(document.getElementById("auEmail")||{}).value;
     const password=(document.getElementById("auPass")||{}).value;
     const displayName=(document.getElementById("auName")||{}).value;
     try {
-      const r=await api("/api/auth/register",{method:"POST",body:{email,password,displayName}});
-      if(r.emailDev){
-        alert("Cuenta creada ✓\n\nEl servidor no tiene email configurado: el enlace de verificación se ha impreso en la CONSOLA del servidor (terminal donde ejecutas npm start). Cópialo y pégalo en el navegador.");
-      } else if(!r.emailSent){
-        alert("Cuenta creada ✓\n\nNo se pudo enviar el email de verificación. Revisa la consola del servidor para ver el enlace. Comprueba que RESEND_API_KEY y EMAIL_FROM están bien configurados en .env");
-      } else {
-        alert("Cuenta creada ✓ Te hemos enviado un email de confirmación. Revisa tu bandeja de entrada (y la carpeta de spam).");
-      }
+      await api("/api/auth/register",{method:"POST",body:{email,password,displayName}});
+      alert("Cuenta creada ✓ Ya puedes iniciar sesión.");
       Auth.show("login");
     } catch(e){ Auth.err(Auth.errKey(e.message)); }
   },
@@ -1561,19 +1536,6 @@ async function _consumePendingInvite(){
   try { await api("/api/invitations/accept",{method:"POST",body:{token:t}}); ME=(await api("/api/auth/me")).user; return true; }
   catch(e){ alert("No se pudo aceptar la invitación: "+Auth.errKey(e.message)); return false; }
 }
-// Engancha tras login exitoso (parchamos doLogin):
-const _origDoLogin = Auth.doLogin;
-Auth.doLogin = async function(){
-  const email=(document.getElementById("auEmail")||{}).value;
-  const password=(document.getElementById("auPass")||{}).value;
-  try {
-    await api("/api/auth/login",{method:"POST",body:{email,password}});
-    ME = (await api("/api/auth/me")).user;
-    await _consumePendingInvite();
-    bootstrap();
-  } catch(e){ Auth.err(Auth.errKey(e.message)); }
-};
-
 bootstrap();
 
 </script>
