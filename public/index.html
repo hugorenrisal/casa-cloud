@@ -1174,7 +1174,20 @@ async function bootstrap(){
   try { ME = (await api("/api/auth/me")).user; }
   catch (e) {
     if (e.status === 401) { ME = null; }
-    else { showFatal("No se pudo conectar con el servidor."); return; }
+    else {
+      // Error de red (servidor apagado) → mostrar pantalla de login con aviso
+      const isNetworkErr = !e.status || e.message==="Failed to fetch" || e.message.includes("NetworkError");
+      if (isNetworkErr) {
+        Auth.show("login");
+        setTimeout(()=>{
+          const el=document.getElementById("authErr");
+          if(el){ el.textContent="⚠️ No se puede conectar con el servidor. Si acabas de abrir la app, ejecuta npm start en la terminal y recarga la página."; el.style.display="block"; }
+        },0);
+      } else {
+        Auth.show("login");
+      }
+      return;
+    }
   }
 
   // No autenticado
@@ -1349,16 +1362,18 @@ const Auth = {
   err(msg){ const e=document.getElementById("authErr"); if(e){ e.textContent=msg; e.style.display="block"; } },
   errKey(key){
     const M={
+      "Failed to fetch":"No se puede conectar con el servidor. Asegúrate de que está arrancado (npm start en la terminal) y recarga la página.",
+      "NetworkError when attempting to fetch resource.":"No se puede conectar con el servidor. Ejecuta npm start en la terminal.",
       "email_invalido":"El correo no es válido.",
       "password_corta_min_8":"La contraseña debe tener al menos 8 caracteres.",
       "password_requerida":"Escribe la contraseña.",
       "nombre_requerido":"Pon un nombre visible.",
       "email_ya_registrado":"Ya existe una cuenta con ese correo.",
       "credenciales_invalidas":"Correo o contraseña incorrectos.",
-      "email_no_verificado":"Confirma tu correo antes de entrar (revisa tu bandeja).",
-      "token_invalido":"El enlace no es válido.",
-      "token_expirado":"El enlace ha caducado.",
-      "token_ya_usado":"El enlace ya se usó.",
+      "email_no_verificado":"Email no verificado. Revisa tu bandeja de entrada (o spam). Si no tienes el email, usa el botón de reenvío.",
+      "token_invalido":"El enlace no es válido o ya expiró.",
+      "token_expirado":"El enlace ha caducado. Solicita uno nuevo.",
+      "token_ya_usado":"El enlace ya se usó. Intenta iniciar sesión.",
       "demasiados_intentos":"Demasiados intentos. Espera unos minutos.",
       "demasiados_registros":"Demasiados registros. Espera un momento.",
       "demasiadas_solicitudes":"Demasiadas solicitudes. Espera un momento.",
@@ -1370,13 +1385,37 @@ const Auth = {
       "invitacion_ya_aceptada":"Esta invitación ya fue aceptada.",
       "email_no_coincide":"Esta invitación es para otro correo.",
     };
-    return M[key] || ("Error: "+key);
+    return M[key] || ("Error inesperado: "+key);
   },
   async doLogin(){
     const email=(document.getElementById("auEmail")||{}).value;
     const password=(document.getElementById("auPass")||{}).value;
-    try { await api("/api/auth/login",{method:"POST",body:{email,password}}); bootstrap(); }
-    catch(e){ Auth.err(Auth.errKey(e.message)); }
+    try {
+      await api("/api/auth/login",{method:"POST",body:{email,password}});
+      ME=(await api("/api/auth/me")).user;
+      await _consumePendingInvite();
+      bootstrap();
+    }
+    catch(e){
+      if(e.message==="email_no_verificado"){
+        // Mostrar error + botón para reenviar verificación
+        const el=document.getElementById("authErr");
+        if(el){
+          el.innerHTML=Auth.errKey("email_no_verificado")+
+            ` <button onclick="Auth._resendFromLogin('${esc(email)}')" style="margin-left:10px;font-weight:700;color:var(--accent);background:none;border:none;cursor:pointer;font-size:13px;text-decoration:underline">Reenviar email</button>`;
+          el.style.display="block";
+        }
+      } else {
+        Auth.err(Auth.errKey(e.message));
+      }
+    }
+  },
+  async _resendFromLogin(email){
+    if(!email){ return; }
+    try {
+      await api("/api/auth/resend-verify",{method:"POST",body:{email}});
+      alert("Email de verificación reenviado a "+email+". Revisa tu bandeja (y spam).");
+    } catch(ex){ Auth.err("No se pudo reenviar. Inténtalo de nuevo."); }
   },
   async doRegister(){
     const email=(document.getElementById("auEmail")||{}).value;
