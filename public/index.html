@@ -175,9 +175,23 @@ tr:last-child td{border-bottom:none}
 
 @media(min-width:861px){ .desk{display:block} }
 @media(max-width:860px){ .mob{display:block} }
+
+/* =========================================================
+   PANTALLAS DE AUTENTICACIÓN (login / register / onboarding)
+   ========================================================= */
+#auth{display:none}
+.auth-shell{min-height:100vh;display:grid;place-items:center;padding:28px 18px}
+.auth-card{max-width:420px;width:100%;background:var(--card);border:1.5px solid var(--line);border-radius:22px;padding:28px;box-shadow:var(--shadow)}
+.auth-brand{font-family:var(--num);font-weight:700;font-size:22px;margin-bottom:14px;color:var(--accent)}
+.auth-card h2{font-size:22px;margin:0 0 4px}
+.auth-err{display:none;background:#fde0e0;color:var(--red);border:1.5px solid #f7c4c4;border-radius:12px;padding:10px 12px;font-size:13px;font-weight:700;margin-bottom:12px}
+.auth-pick{display:flex;align-items:center;gap:14px;border:1.5px solid var(--line);border-radius:16px;padding:14px;margin-bottom:10px;cursor:pointer;transition:.15s;background:#fff}
+.auth-pick:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
+.auth-pick-ico{width:46px;height:46px;border-radius:14px;background:#ffe2c8;color:var(--accent);display:grid;place-items:center;font-size:22px;flex:none}
 </style>
 </head>
 <body>
+<div id="auth"></div>
 <div class="modebar" id="modebar"></div>
 <div class="desk" id="desk"></div>
 <div class="mob" id="mob"></div>
@@ -186,22 +200,35 @@ tr:last-child td{border-bottom:none}
 <div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()"><div class="modal" id="modal"></div></div>
 <script>
 // =========================================================================
+//  HELPER FETCH CON CREDENCIALES (JWT cookie httpOnly)
+// =========================================================================
+async function api(url, opts){
+  const o = Object.assign({ credentials: "include" }, opts||{});
+  if (o.body && typeof o.body !== "string") {
+    o.body = JSON.stringify(o.body);
+    o.headers = Object.assign({ "Content-Type": "application/json" }, o.headers||{});
+  }
+  const r = await fetch(url, o);
+  let data = null;
+  try { data = await r.json(); } catch(e) {}
+  if (!r.ok) {
+    const err = new Error((data && data.error) || ("http_"+r.status));
+    err.status = r.status; err.payload = data;
+    throw err;
+  }
+  return data;
+}
+// =========================================================================
 //  ESTADO Y PERSISTENCIA
 // =========================================================================
-// --- Persistencia en SERVIDOR (estado familiar compartido) ---
-// El rol elegido (padre o qué hijo) sí es local a este dispositivo.
-const ROLE_KEY = "casa_role_v1";
 let _saveTimer=null, _lastSent=0;
 const Store = {
-  // read() ya no se usa para el arranque (ver bootstrap); se mantiene por compatibilidad.
   read(){ return null; },
   write(s){
-    // Envía el estado al servidor con un pequeño anti-rebote.
     clearTimeout(_saveTimer);
     _saveTimer=setTimeout(()=>{
       _lastSent=Date.now();
-      fetch("/api/state",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(s)})
-        .catch(()=>{ showConn(false); });
+      api("/api/state",{method:"PUT",body:s}).catch(()=>{ showConn(false); });
     },250);
   },
 };
@@ -467,8 +494,8 @@ function acceptOffer(offerId){
   S.marketLog.push({kind:"trade", taskId:l.taskId, giveTaskId:o.offeredTaskId, from:l.sellerId, to:o.bidderId, points:o.pointsAsked, at:Date.now()});
   save(); render();
 }
-function setView(v){ S.view=v; rememberRole(); save(); render() }
-function setProfile(p){ S.profile=p; S.deskTab="home"; S.mobTab="home"; rememberRole(); save(); closeSheet(); render() }
+function setView(v){ S.view=v; save(); render() }
+function setProfile(p){ S.profile=p; S.deskTab="home"; S.mobTab="home"; save(); closeSheet(); render() }
 function setDeskTab(t){ S.deskTab=t; save(); render() }
 function setMobTab(t){ S.mobTab=t; save(); render() }
 function setLoad(id,v){ member(id).load=v; save(); render() }
@@ -481,10 +508,10 @@ function delFixed(id){ S.fixedTasks=S.fixedTasks.filter(t=>t.id!==id); save();re
 function delExtra(id){ S.extraTasks=S.extraTasks.filter(t=>t.id!==id); save();render() }
 function addDish(){ const n=$("dishName").value.trim(); if(!n)return; S.dishes.push(n); save();closeModal();closeSheet();render() }
 async function resetAll(){
-  if(!confirm("Esto reiniciará TODOS los datos a la familia de ejemplo. ¿Continuar?")) return;
+  if(!confirm("Esto reiniciará TODOS los datos de tu familia (no afecta a tu cuenta). ¿Continuar?")) return;
   try{
-    const r=await fetch("/api/reset",{method:"POST"}); if(!r.ok) throw 0;
-    const r2=await fetch("/api/state"); S=await r2.json(); ensureShape(); render();
+    await api("/api/reset",{method:"POST"});
+    S=await api("/api/state"); ensureShape(); render();
   }catch(e){ alert("No se pudo reiniciar. Inténtalo de nuevo."); }
 }
 
@@ -504,12 +531,12 @@ const svg=k=>`<svg viewBox="0 0 24 24"><path d="${ICN[k]}"/></svg>`;
 // =========================================================================
 //  VISTA ESCRITORIO — PADRE
 // =========================================================================
-const DESK_NAV=[["home","Resumen","home"],["fixed","Tareas fijas","check"],["extra","Adicionales","scale"],["validate","Validar","users"],["menu","Menús","fork"],["econ","Economía","coin"]];
+const DESK_NAV=[["home","Resumen","home"],["fixed","Tareas fijas","check"],["extra","Adicionales","scale"],["validate","Validar","users"],["menu","Menús","fork"],["econ","Economía","coin"],["invites","Invitaciones","gift"]];
 
 function renderDesk(){
   const tab=S.deskTab;
-  const titles={home:"Resumen de la familia",fixed:"Tareas fijas",extra:"Tareas adicionales",validate:"Validaciones",menu:"Planificador de menús",econ:"Economía y ajustes"};
-  const body=({home:dHome,fixed:dFixed,extra:dExtra,validate:dValidate,menu:dMenu,econ:dEcon}[tab]||dHome)();
+  const titles={home:"Resumen de la familia",fixed:"Tareas fijas",extra:"Tareas adicionales",validate:"Validaciones",menu:"Planificador de menús",econ:"Economía y ajustes",invites:"Familia e invitaciones"};
+  const body=({home:dHome,fixed:dFixed,extra:dExtra,validate:dValidate,menu:dMenu,econ:dEcon,invites:dInvites}[tab]||dHome)();
   $("desk").innerHTML=`<div class="wrap">
     <aside class="side">
       <div class="brand"><span class="dot">🏠</span><div><div style="font-weight:700">Casa</div><div class="dim" style="font-size:11px">${esc(monthName(S.currentMonth))}</div></div></div>
@@ -520,6 +547,110 @@ function renderDesk(){
       <div class="screen">${body}</div>
     </main>
   </div>`;
+}
+
+// =========================================================================
+//  VISTA "FAMILIA E INVITACIONES" (solo padres)
+// =========================================================================
+let _familyCache = { family:null, members:[], invitations:[], loaded:false };
+async function refreshFamilyData(){
+  try {
+    const fam = await api("/api/families/current");
+    _familyCache.family = fam.family;
+    _familyCache.members = fam.members;
+    const inv = await api("/api/families/"+fam.family.id+"/invitations");
+    _familyCache.invitations = inv.invitations || [];
+  } catch(e){
+    console.warn("[familyData]", e.message);
+  }
+  _familyCache.loaded = true;
+  if (S.deskTab === "invites") render();
+}
+
+function dInvites(){
+  if (!ME || ME.roleInFamily !== "parent") {
+    return '<div class="empty">Solo los padres pueden gestionar la familia.</div>';
+  }
+  if (!_familyCache.loaded) { refreshFamilyData(); return '<div class="empty">Cargando…</div>'; }
+  const fam = _familyCache.family || { name:"" };
+  const members = _familyCache.members || [];
+  const invitations = _familyCache.invitations || [];
+  const statusChip = s => {
+    const M = { pending:["p-wait","Pendiente"], accepted:["p-ok","Aceptada"], expired:["p-late","Expirada"], revoked:["p-pending","Revocada"] };
+    const [c,l] = M[s] || ["p-pending", s];
+    return `<span class="pill ${c}">${l}</span>`;
+  };
+  const fmtDate = d => d ? new Date(d).toLocaleString("es-ES") : "—";
+  return `
+  <div class="card" style="margin-bottom:18px">
+    <h3 style="font-size:15px;margin-bottom:6px">Familia: ${esc(fam.name)}</h3>
+    <p class="dim" style="font-size:13px">Identificador interno: <code>${esc(fam.id||"")}</code></p>
+  </div>
+  <div class="cols">
+    <div class="card">
+      <h3 style="font-size:14px;margin-bottom:10px">Miembros (${members.length})</h3>
+      <table><thead><tr><th>Nombre</th><th>Rol</th><th>Email</th><th>Desde</th><th></th></tr></thead><tbody>
+      ${members.map(m=>`<tr>
+        <td><b>${esc(m.display_name||"?")}</b></td>
+        <td><span class="chip">${m.role_in_family==="parent"?"Padre/madre":"Hijo/a"}</span></td>
+        <td class="dim" style="font-size:12px">${esc(m.email)}</td>
+        <td class="dim" style="font-size:12px">${fmtDate(m.joined_at)}</td>
+        <td style="text-align:right">${m.user_id===ME.id?'<span class="dim" style="font-size:11px">tú</span>':`<button class="btn ghost sm" style="color:var(--red)" onclick="actionRemoveMember('${m.user_id}','${esc(m.display_name)}')">Expulsar</button>`}</td>
+      </tr>`).join("")}
+      </tbody></table>
+    </div>
+    <div class="card">
+      <h3 style="font-size:14px;margin-bottom:10px">Invitar a alguien</h3>
+      <div class="field"><label>Correo</label><input id="invEmail" type="email" placeholder="hijo@email.com"></div>
+      <div class="field"><label>Rol</label><select id="invRole"><option value="child">Hijo/a</option><option value="parent">Co-padre/madre</option></select></div>
+      <button class="btn primary w" onclick="actionSendInvite()">Enviar invitación</button>
+      <p class="dim" style="font-size:11px;margin-top:10px">Le llegará un email con un enlace seguro que caduca en 7 días.</p>
+    </div>
+  </div>
+  <div class="card" style="margin-top:18px">
+    <h3 style="font-size:14px;margin-bottom:10px">Invitaciones enviadas (${invitations.length})</h3>
+    ${invitations.length?`<table><thead><tr><th>Correo</th><th>Rol</th><th>Estado</th><th>Caduca</th><th></th></tr></thead><tbody>
+      ${invitations.map(i=>`<tr>
+        <td><b>${esc(i.email)}</b></td>
+        <td><span class="chip">${i.role==="parent"?"Padre/madre":"Hijo/a"}</span></td>
+        <td>${statusChip(i.status)}</td>
+        <td class="dim" style="font-size:12px">${fmtDate(i.expiresAt)}</td>
+        <td style="text-align:right;white-space:nowrap">
+          ${i.status==="pending"?`<button class="btn sm" onclick="actionResendInvite('${i.id}')">Reenviar</button> <button class="btn ghost sm" style="color:var(--red)" onclick="actionRevokeInvite('${i.id}')">Revocar</button>`:""}
+          ${i.status==="expired"?`<button class="btn sm" onclick="actionResendInvite('${i.id}')">Reenviar</button>`:""}
+        </td>
+      </tr>`).join("")}
+    </tbody></table>`:'<div class="empty">No has enviado ninguna invitación todavía.</div>'}
+  </div>`;
+}
+
+async function actionSendInvite(){
+  const email = (document.getElementById("invEmail")||{}).value;
+  const role = (document.getElementById("invRole")||{}).value;
+  if (!email) { alert("Pon un correo."); return; }
+  try {
+    await api("/api/families/"+_familyCache.family.id+"/invitations",
+      {method:"POST", body:{email, role}});
+    await refreshFamilyData();
+    alert("Invitación enviada.");
+  } catch(e){ alert("No se pudo enviar: " + e.message); }
+}
+async function actionRevokeInvite(id){
+  if (!confirm("¿Revocar esta invitación? El enlace dejará de funcionar.")) return;
+  try { await api("/api/families/"+_familyCache.family.id+"/invitations/"+id+"/revoke",{method:"POST"}); await refreshFamilyData(); }
+  catch(e){ alert("No se pudo revocar."); }
+}
+async function actionResendInvite(id){
+  try { await api("/api/families/"+_familyCache.family.id+"/invitations/"+id+"/resend",{method:"POST"}); await refreshFamilyData(); alert("Reenviada."); }
+  catch(e){ alert("No se pudo reenviar."); }
+}
+async function actionRemoveMember(uid, name){
+  if (!confirm("¿Expulsar a "+name+" de la familia? Sus tareas asignadas se mantendrán hasta que reinicies el mes.")) return;
+  try {
+    await api("/api/families/"+_familyCache.family.id+"/members/"+uid,{method:"DELETE"});
+    await refreshFamilyData();
+    alert("Expulsado.");
+  } catch(e){ alert("No se pudo expulsar: "+e.message); }
 }
 
 function dHome(){
@@ -683,8 +814,7 @@ function restoreBackup(input){
     if(!data || !Array.isArray(data.members)){ alert("El archivo no parece una copia de esta app."); return; }
     if(!confirm("Esto reemplazará TODOS los datos actuales por los de la copia. ¿Continuar?")){ input.value=""; return; }
     try{
-      const r=await fetch("/api/restore",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
-      if(!r.ok) throw 0;
+      await api("/api/restore",{method:"POST",body:data});
       S=data; ensureShape(); render();
       alert("Copia restaurada correctamente.");
     }catch(e){ alert("No se pudo restaurar. Inténtalo de nuevo."); }
@@ -982,9 +1112,9 @@ function sheetRedeem(id){const r=S.rewards.find(x=>x.id===id);
     <p class="dim" style="font-size:14px;margin-bottom:18px">Vas a pedir "<b style="color:var(--text)">${esc(r.title)}</b>" por ${r.cost} pts. Tus padres recibirán la solicitud para aprobarla.</p>
     <button class="btn primary w" onclick="closeSheet()">Enviar solicitud</button>`); }
 function mobSwitchUser(){
-  openSheet(`<h3 style="margin-bottom:16px">Cambiar de hijo/a</h3>
-    ${children().map(c=>`<button class="btn ${S.profile===c.id?"primary":""} w" style="margin-bottom:10px" onclick="setProfile('${c.id}')">${c.name}</button>`).join("")}
-    <p class="dim" style="font-size:12px;text-align:center;margin-top:6px">(En la app real, cada hijo entra con su propia cuenta.)</p>`); }
+  openSheet(`<h3 style="margin-bottom:16px">Cuenta</h3>
+    <div class="dim" style="font-size:13px;margin-bottom:14px">Has entrado como <b>${ME?esc(ME.email):"?"}</b></div>
+    <button class="btn w" onclick="Auth.doLogout()">Cerrar sesión</button>`); }
 
 // Sheet helpers
 function openSheet(h){ $("sheet").innerHTML=`<div class="grab"></div>${h}`; $("sheet").classList.add("open"); $("sheetBg").classList.add("open"); }
@@ -1001,7 +1131,7 @@ function renderModebar(){
     <span class="spacer"></span>
     <span class="dim" style="font-size:12px">${monthName(S.currentMonth)}</span>
     <span id="connDot" title="Conectado" style="width:9px;height:9px;border-radius:50%;background:var(--green);display:inline-block;margin:0 4px 0 8px"></span>
-    <button class="btn ghost sm" style="padding:5px 10px" onclick="renderIdentityPicker()">Cambiar</button>`;
+    <button class="btn ghost sm" style="padding:5px 10px" onclick="Auth.doLogout()">Cerrar sesión</button>`;
 }
 function render(){
   rollover();
@@ -1016,84 +1146,388 @@ function render(){
     renderMob();
   }
 }
-// ============== ARRANQUE Y SINCRONIZACIÓN ==============
-// Carga el estado del servidor. Si está vacío, el servidor devuelve la semilla.
+// ============== ARRANQUE: auth → onboarding → app ==============
+// Sesión del usuario autenticado (devuelta por /api/auth/me).
+let ME = null;
+
+// Lee parámetro de query/hash (tokens de verificación, invitación, reset).
+function urlParam(name){
+  const h = location.hash || "";
+  const q = h.includes("?") ? h.split("?")[1] : (location.search.startsWith("?") ? location.search.slice(1) : "");
+  const p = new URLSearchParams(q);
+  return p.get(name);
+}
+function urlPath(){
+  const h = location.hash || "";
+  const noQ = h.includes("?") ? h.split("?")[0] : h;
+  return noQ.replace(/^#\/?/, ""); // "login", "verify", "invite", etc.
+}
+
 async function bootstrap(){
+  // Rutas públicas (no requieren sesión)
+  const path = urlPath();
+  if (path === "verify") return Auth.verifyEmailFromUrl();
+  if (path === "reset-password") return Auth.resetPasswordFromUrl();
+  if (path === "forgot-password") return Auth.show("forgot");
+
+  // ¿Sesión activa?
+  try { ME = (await api("/api/auth/me")).user; }
+  catch (e) {
+    if (e.status === 401) { ME = null; }
+    else { showFatal("No se pudo conectar con el servidor."); return; }
+  }
+
+  // No autenticado
+  if (!ME) {
+    // Invitación entrante: enseña preview antes del login
+    if (path === "invite") return Auth.showInvitePreview(urlParam("token"));
+    if (path === "register") return Auth.show("register");
+    return Auth.show("login");
+  }
+
+  // Autenticado pero sin email verificado
+  if (!ME.emailVerified) return Auth.show("verify-pending");
+
+  // Si llega a aceptar invitación con sesión activa:
+  if (path === "invite") return Auth.handleInviteWithSession(urlParam("token"));
+
+  // Onboarding: elegir rol
+  if (!ME.role) return Auth.show("pick-role");
+  // Padre sin familia: crear
+  if (ME.role === "parent" && !ME.familyId) return Auth.show("create-family");
+  // Hijo sin familia: esperar invitación
+  if (ME.role === "child" && !ME.familyId) return Auth.show("waiting");
+
+  // Todo OK → lanza la app principal
+  await launchApp();
+}
+
+async function launchApp(){
   try{
-    const r=await fetch("/api/state");
-    if(!r.ok) throw new Error("http "+r.status);
-    S=await r.json();
+    S = await api("/api/state");
     showConn(true);
     ensureShape();
-    // ¿Este dispositivo ya eligió quién es? Si no, preguntar.
-    let role=null;
-    try{ role=JSON.parse(localStorage.getItem(ROLE_KEY)||"null"); }catch(e){}
-    if(role && (role.view==="desk" || (role.profile && member(role.profile)))){
-      S.view=role.view; S.profile=role.profile;
-      render();
-    }else{
-      renderIdentityPicker(); // primera vez en este dispositivo
+    // Vista deriva del rol en la familia (padre → desk, hijo → mob)
+    S.view = (ME.roleInFamily === "parent") ? "desk" : "mob";
+    S.profile = (ME.roleInFamily === "parent") ? "parent" : ME.id;
+    if (S.view === "mob" && !member(S.profile)) {
+      // Por si el server aún no sincronizó members
+      const kid = children()[0]; if (kid) S.profile = kid.id;
     }
+    document.getElementById("auth").style.display = "none";
+    document.getElementById("modebar").style.display = "";
+    render();
     startPolling();
   }catch(e){
-    document.getElementById("desk").innerHTML='<div style="max-width:520px;margin:80px auto;padding:24px" class="card"><h3>No se pudo conectar con el servidor</h3><p class="dim">Comprueba tu conexión a internet e inténtalo de nuevo. Si acabas de desplegar la app, espera un minuto (el servidor gratuito tarda en despertar) y recarga la página.</p><button class="btn primary" onclick="location.reload()">Reintentar</button></div>';
-    document.getElementById("desk").style.display="block";
+    showFatal("No se pudo cargar la familia. Recarga la página o vuelve a iniciar sesión.");
   }
 }
-// Recuerda el rol localmente cada vez que cambia
-function rememberRole(){ try{ localStorage.setItem(ROLE_KEY,JSON.stringify({view:S.view,profile:S.profile})); }catch(e){} }
 
-// Pantalla de bienvenida: ¿quién usa este dispositivo? (una vez por dispositivo)
-function renderIdentityPicker(){
-  $("mob").style.display="none";
-  $("desk").style.display="block";
-  const kids=children();
-  $("desk").innerHTML=`<div style="max-width:560px;margin:8vh auto;padding:0 20px">
-    <div style="text-align:center;margin-bottom:26px">
-      <div style="font-size:54px">🏠</div>
-      <h1 style="font-size:28px;margin-top:8px">Tareas en familia</h1>
-      <p class="dim" style="font-size:15px;margin-top:6px">¿Quién va a usar este dispositivo?</p>
-    </div>
-    <div class="card" style="cursor:pointer;margin-bottom:14px;display:flex;align-items:center;gap:16px" onclick="chooseIdentity('desk')">
-      <div class="avatar" style="width:52px;height:52px;background:linear-gradient(150deg,var(--accent),var(--sun));font-size:24px">🖥️</div>
-      <div><div style="font-weight:800;font-size:17px">Soy padre / madre</div><div class="dim" style="font-size:13px">Panel de control (ideal en el ordenador)</div></div>
-    </div>
-    ${kids.map(c=>`<div class="card" style="cursor:pointer;margin-bottom:14px;display:flex;align-items:center;gap:16px" onclick="chooseIdentity('child','${c.id}')">
-      <div class="avatar" style="width:52px;height:52px;background:${c.color}22;color:${c.color};font-size:22px">${c.name[0]}</div>
-      <div><div style="font-weight:800;font-size:17px">Soy ${c.name}</div><div class="dim" style="font-size:13px">Mis tareas y mi monedero (en el móvil)</div></div>
-    </div>`).join("")}
-    <p class="dim" style="font-size:12px;text-align:center;margin-top:18px">Podrás cambiarlo luego con el botón de usuario.</p>
-  </div>`;
-}
-function chooseIdentity(kind, childId){
-  if(kind==="desk"){ S.view="desk"; S.profile="parent"; }
-  else { S.view="mob"; S.profile=childId; }
-  S.deskTab="home"; S.mobTab="home";
-  rememberRole(); render();
+function showFatal(msg){
+  document.getElementById("auth").style.display="block";
+  document.getElementById("auth").innerHTML =
+    '<div class="auth-shell"><div class="auth-card"><h2>Algo no fue bien</h2>'+
+    '<p class="dim">'+esc(msg)+'</p>'+
+    '<button class="btn primary w" style="margin-top:14px" onclick="location.reload()">Reintentar</button></div></div>';
 }
 
-// Sondeo: trae cambios hechos en otros dispositivos cada 4 s.
+// Sondeo cada 4 s (solo cuando la app está activa)
 let _poll=null;
 function startPolling(){
   clearInterval(_poll);
   _poll=setInterval(async()=>{
-    // no pisar justo después de que ESTE dispositivo haya guardado
     if(Date.now()-_lastSent<1500) return;
     try{
-      const r=await fetch("/api/state"); if(!r.ok) throw 0;
-      const remote=await r.json();
+      const remote = await api("/api/state");
       showConn(true);
-      // preserva el rol local; adopta el resto del estado remoto si cambió
       const localView=S.view, localProfile=S.profile;
       const remoteStr=JSON.stringify(stripRole(remote));
       if(remoteStr!==JSON.stringify(stripRole(S))){
         S=remote; S.view=localView; S.profile=localProfile;
         ensureShape(); render();
       }
-    }catch(e){ showConn(false); }
+    }catch(e){
+      if(e.status===401){ clearInterval(_poll); ME=null; Auth.show("login"); return; }
+      showConn(false);
+    }
   },4000);
 }
 function stripRole(o){ const c={...o}; delete c.view; delete c.profile; return c; }
+
+// ============== UI DE AUTENTICACIÓN ==============
+const Auth = {
+  show(screen){
+    document.getElementById("desk").style.display="none";
+    document.getElementById("mob").style.display="none";
+    document.getElementById("modebar").style.display="none";
+    const el = document.getElementById("auth");
+    el.style.display="block";
+    el.innerHTML = ({
+      "login": Auth.tplLogin,
+      "register": Auth.tplRegister,
+      "forgot": Auth.tplForgot,
+      "verify-pending": Auth.tplVerifyPending,
+      "pick-role": Auth.tplPickRole,
+      "create-family": Auth.tplCreateFamily,
+      "waiting": Auth.tplWaiting,
+    }[screen] || Auth.tplLogin)();
+  },
+  shell(title, subtitle, body, footer){
+    return `<div class="auth-shell">
+      <div class="auth-card">
+        <div class="auth-brand">🏠 <span>Casa</span></div>
+        <h2>${esc(title)}</h2>
+        ${subtitle?`<p class="dim" style="font-size:13px;margin:6px 0 16px">${esc(subtitle)}</p>`:""}
+        ${body}
+        ${footer?`<div class="dim" style="font-size:12px;text-align:center;margin-top:18px">${footer}</div>`:""}
+      </div></div>`;
+  },
+  tplLogin(){
+    return Auth.shell("Inicia sesión", "Entra con tu correo y contraseña.", `
+      <div id="authErr" class="auth-err"></div>
+      <div class="field"><label>Correo</label><input id="auEmail" type="email" autocomplete="username" placeholder="tu@email.com"></div>
+      <div class="field"><label>Contraseña</label><input id="auPass" type="password" autocomplete="current-password" placeholder="••••••••"></div>
+      <button class="btn primary w" onclick="Auth.doLogin()">Entrar</button>
+      <div style="text-align:center;margin-top:10px"><a href="#/forgot-password" onclick="event.preventDefault();Auth.show('forgot')" class="dim" style="font-size:13px">¿Olvidaste tu contraseña?</a></div>
+    `, `¿Aún no tienes cuenta? <a href="#/register" onclick="event.preventDefault();Auth.show('register')" style="color:var(--accent);font-weight:700">Crear cuenta</a>`);
+  },
+  tplRegister(){
+    return Auth.shell("Crea tu cuenta", "Email, contraseña y nombre. Te enviaremos un email de confirmación.", `
+      <div id="authErr" class="auth-err"></div>
+      <div class="field"><label>Nombre visible</label><input id="auName" placeholder="Ej. María" maxlength="40"></div>
+      <div class="field"><label>Correo</label><input id="auEmail" type="email" autocomplete="email"></div>
+      <div class="field"><label>Contraseña (mín. 8)</label><input id="auPass" type="password" autocomplete="new-password"></div>
+      <button class="btn primary w" onclick="Auth.doRegister()">Crear cuenta</button>
+    `, `¿Ya tienes cuenta? <a href="#/login" onclick="event.preventDefault();Auth.show('login')" style="color:var(--accent);font-weight:700">Inicia sesión</a>`);
+  },
+  tplForgot(){
+    return Auth.shell("Recuperar contraseña", "Te enviaremos un enlace para restablecerla.", `
+      <div id="authErr" class="auth-err"></div>
+      <div class="field"><label>Correo</label><input id="auEmail" type="email"></div>
+      <button class="btn primary w" onclick="Auth.doForgot()">Enviar enlace</button>
+    `, `<a href="#/login" onclick="event.preventDefault();Auth.show('login')" style="color:var(--accent);font-weight:700">Volver a iniciar sesión</a>`);
+  },
+  tplVerifyPending(){
+    return Auth.shell("Confirma tu correo", "Te hemos enviado un email para activar la cuenta. Haz clic en el botón del correo para continuar.", `
+      <div id="authErr" class="auth-err"></div>
+      <button class="btn w" onclick="Auth.doResendVerify()">Reenviar email</button>
+      <button class="btn ghost w" style="margin-top:8px" onclick="Auth.doLogout()">Salir</button>
+    `);
+  },
+  tplPickRole(){
+    return Auth.shell("¿Cómo vas a usar Casa?", "Esto decide qué pantallas verás. No se puede cambiar después.", `
+      <div id="authErr" class="auth-err"></div>
+      <div class="auth-pick" onclick="Auth.doPickRole('parent')">
+        <div class="auth-pick-ico">🖥️</div>
+        <div><b>Soy padre / madre</b><div class="dim" style="font-size:13px">Crearás una familia, invitarás a tus hijos y verás el panel completo.</div></div>
+      </div>
+      <div class="auth-pick" onclick="Auth.doPickRole('child')">
+        <div class="auth-pick-ico" style="background:#d9eefa;color:var(--cyan)">📱</div>
+        <div><b>Soy hijo / hija</b><div class="dim" style="font-size:13px">Solo podrás unirte a una familia cuando un padre te invite por email.</div></div>
+      </div>
+      <button class="btn ghost w" style="margin-top:14px" onclick="Auth.doLogout()">Cerrar sesión</button>
+    `);
+  },
+  tplCreateFamily(){
+    return Auth.shell("Crea tu familia", "Pon un nombre. Podrás cambiarlo más adelante.", `
+      <div id="authErr" class="auth-err"></div>
+      <div class="field"><label>Nombre de la familia</label><input id="auFamName" placeholder="Ej. Familia García" maxlength="60"></div>
+      <button class="btn primary w" onclick="Auth.doCreateFamily()">Crear familia</button>
+      <button class="btn ghost w" style="margin-top:8px" onclick="Auth.doLogout()">Cerrar sesión</button>
+    `);
+  },
+  tplWaiting(){
+    return Auth.shell("Esperando invitación", "Pídele a tu padre o madre que te invite desde su panel introduciendo tu email.", `
+      <div class="auth-info" style="background:#eef9f1;border:1.5px solid #bfead4;border-radius:14px;padding:14px;font-size:13px;color:var(--green);margin-bottom:14px">
+        Tu email: <b>${ME?esc(ME.email):""}</b>
+      </div>
+      <button class="btn w" onclick="bootstrap()">Comprobar de nuevo</button>
+      <button class="btn ghost w" style="margin-top:8px" onclick="Auth.doLogout()">Cerrar sesión</button>
+    `);
+  },
+  // -------- Acciones --------
+  err(msg){ const e=document.getElementById("authErr"); if(e){ e.textContent=msg; e.style.display="block"; } },
+  errKey(key){
+    const M={
+      "email_invalido":"El correo no es válido.",
+      "password_corta_min_8":"La contraseña debe tener al menos 8 caracteres.",
+      "password_requerida":"Escribe la contraseña.",
+      "nombre_requerido":"Pon un nombre visible.",
+      "email_ya_registrado":"Ya existe una cuenta con ese correo.",
+      "credenciales_invalidas":"Correo o contraseña incorrectos.",
+      "email_no_verificado":"Confirma tu correo antes de entrar (revisa tu bandeja).",
+      "token_invalido":"El enlace no es válido.",
+      "token_expirado":"El enlace ha caducado.",
+      "token_ya_usado":"El enlace ya se usó.",
+      "demasiados_intentos":"Demasiados intentos. Espera unos minutos.",
+      "demasiados_registros":"Demasiados registros. Espera un momento.",
+      "demasiadas_solicitudes":"Demasiadas solicitudes. Espera un momento.",
+      "ya_en_familia":"Ya perteneces a una familia.",
+      "rol_invalido":"Rol no válido.",
+      "rol_ya_fijado":"El rol ya está fijado y no se puede cambiar.",
+      "nombre_familia_invalido":"El nombre de la familia es demasiado corto.",
+      "invitacion_revocada":"Esta invitación fue revocada.",
+      "invitacion_ya_aceptada":"Esta invitación ya fue aceptada.",
+      "email_no_coincide":"Esta invitación es para otro correo.",
+    };
+    return M[key] || ("Error: "+key);
+  },
+  async doLogin(){
+    const email=(document.getElementById("auEmail")||{}).value;
+    const password=(document.getElementById("auPass")||{}).value;
+    try { await api("/api/auth/login",{method:"POST",body:{email,password}}); bootstrap(); }
+    catch(e){ Auth.err(Auth.errKey(e.message)); }
+  },
+  async doRegister(){
+    const email=(document.getElementById("auEmail")||{}).value;
+    const password=(document.getElementById("auPass")||{}).value;
+    const displayName=(document.getElementById("auName")||{}).value;
+    try {
+      await api("/api/auth/register",{method:"POST",body:{email,password,displayName}});
+      alert("Cuenta creada. Te hemos enviado un email para confirmar tu correo.");
+      Auth.show("login");
+    } catch(e){ Auth.err(Auth.errKey(e.message)); }
+  },
+  async doForgot(){
+    const email=(document.getElementById("auEmail")||{}).value;
+    try {
+      await api("/api/auth/forgot-password",{method:"POST",body:{email}});
+      alert("Si esa cuenta existe, te hemos enviado un email con instrucciones.");
+      Auth.show("login");
+    } catch(e){ Auth.err(Auth.errKey(e.message)); }
+  },
+  async doResendVerify(){
+    if(!ME||!ME.email){ Auth.err("Sesión perdida."); return; }
+    try {
+      await api("/api/auth/resend-verify",{method:"POST",body:{email:ME.email}});
+      alert("Email reenviado. Revisa tu bandeja.");
+    } catch(e){ Auth.err(Auth.errKey(e.message)); }
+  },
+  async doLogout(){
+    try { await api("/api/auth/logout",{method:"POST"}); }catch(e){}
+    ME=null; location.hash="#/login"; Auth.show("login");
+  },
+  async doPickRole(role){
+    try {
+      await api("/api/onboarding/role",{method:"POST",body:{role}});
+      ME = (await api("/api/auth/me")).user;
+      bootstrap();
+    } catch(e){ Auth.err(Auth.errKey(e.message)); }
+  },
+  async doCreateFamily(){
+    const name=(document.getElementById("auFamName")||{}).value;
+    try {
+      await api("/api/onboarding/create-family",{method:"POST",body:{name}});
+      ME = (await api("/api/auth/me")).user;
+      bootstrap();
+    } catch(e){ Auth.err(Auth.errKey(e.message)); }
+  },
+  async verifyEmailFromUrl(){
+    const token = urlParam("token");
+    if(!token){ Auth.show("login"); return; }
+    document.getElementById("auth").style.display="block";
+    document.getElementById("auth").innerHTML = '<div class="auth-shell"><div class="auth-card"><h2>Confirmando tu correo…</h2></div></div>';
+    try {
+      await api("/api/auth/verify-email",{method:"POST",body:{token}});
+      alert("Correo confirmado. Ahora inicia sesión.");
+    } catch(e){ alert(Auth.errKey(e.message)); }
+    location.hash="#/login"; Auth.show("login");
+  },
+  async resetPasswordFromUrl(){
+    const token = urlParam("token");
+    if(!token){ Auth.show("login"); return; }
+    document.getElementById("auth").style.display="block";
+    document.getElementById("desk").style.display="none";
+    document.getElementById("mob").style.display="none";
+    document.getElementById("modebar").style.display="none";
+    document.getElementById("auth").innerHTML = Auth.shell("Nueva contraseña","Elige una contraseña segura.",`
+      <div id="authErr" class="auth-err"></div>
+      <div class="field"><label>Contraseña (mín. 8)</label><input id="auPass" type="password" autocomplete="new-password"></div>
+      <button class="btn primary w" onclick="Auth.doReset('${esc(token)}')">Guardar</button>`);
+  },
+  async doReset(token){
+    const password=(document.getElementById("auPass")||{}).value;
+    try {
+      await api("/api/auth/reset-password",{method:"POST",body:{token,password}});
+      alert("Contraseña actualizada. Inicia sesión.");
+      location.hash="#/login"; Auth.show("login");
+    } catch(e){ Auth.err(Auth.errKey(e.message)); }
+  },
+  async showInvitePreview(token){
+    document.getElementById("auth").style.display="block";
+    document.getElementById("desk").style.display="none";
+    document.getElementById("mob").style.display="none";
+    document.getElementById("modebar").style.display="none";
+    try {
+      const r = await fetch("/api/invitations/preview/"+encodeURIComponent(token));
+      const data = await r.json();
+      if(!r.ok){
+        document.getElementById("auth").innerHTML = Auth.shell("Invitación no válida", data.error || "El enlace no funciona.", '<button class="btn w" onclick="location.hash=\'#/login\';Auth.show(\'login\')">Ir a iniciar sesión</button>');
+        return;
+      }
+      if(data.status!=="pending"){
+        document.getElementById("auth").innerHTML = Auth.shell("Invitación no disponible", "Estado: "+data.status, '<button class="btn w" onclick="location.hash=\'#/login\';Auth.show(\'login\')">Ir a iniciar sesión</button>');
+        return;
+      }
+      const roleLbl = data.role==="parent"?"padre/madre":"hijo/a";
+      document.getElementById("auth").innerHTML = Auth.shell(
+        "Te han invitado a "+data.familyName,
+        (data.inviterName||"Un familiar")+" te invita como "+roleLbl+". Inicia sesión o crea tu cuenta con el correo "+data.invitedEmail+".",
+        `<button class="btn primary w" onclick="Auth.gotoInviteLogin('${esc(token)}','${esc(data.invitedEmail)}')">Tengo cuenta — iniciar sesión</button>
+         <button class="btn w" style="margin-top:8px" onclick="Auth.gotoInviteRegister('${esc(token)}','${esc(data.invitedEmail)}')">Crear cuenta nueva</button>`);
+    } catch(e){
+      showFatal("No se pudo cargar la invitación.");
+    }
+  },
+  _pendingInviteToken: null,
+  gotoInviteLogin(token, email){
+    Auth._pendingInviteToken = token;
+    Auth.show("login");
+    setTimeout(()=>{ const el=document.getElementById("auEmail"); if(el){ el.value=email; } },0);
+  },
+  gotoInviteRegister(token, email){
+    Auth._pendingInviteToken = token;
+    Auth.show("register");
+    setTimeout(()=>{ const el=document.getElementById("auEmail"); if(el){ el.value=email; el.readOnly=true; } },0);
+  },
+  async handleInviteWithSession(token){
+    document.getElementById("auth").style.display="block";
+    document.getElementById("desk").style.display="none";
+    document.getElementById("mob").style.display="none";
+    document.getElementById("modebar").style.display="none";
+    try {
+      await api("/api/invitations/accept",{method:"POST",body:{token}});
+      alert("Te has unido a la familia.");
+      location.hash="";
+      ME = (await api("/api/auth/me")).user;
+      bootstrap();
+    } catch(e){
+      document.getElementById("auth").innerHTML = Auth.shell(
+        "No se pudo aceptar la invitación", Auth.errKey(e.message),
+        '<button class="btn w" onclick="location.hash=\'\';bootstrap()">Continuar</button>');
+    }
+  },
+};
+
+// Si tras un login pendía aceptar una invitación, lo intentamos automáticamente.
+async function _consumePendingInvite(){
+  if(!Auth._pendingInviteToken || !ME) return false;
+  const t = Auth._pendingInviteToken; Auth._pendingInviteToken = null;
+  try { await api("/api/invitations/accept",{method:"POST",body:{token:t}}); ME=(await api("/api/auth/me")).user; return true; }
+  catch(e){ alert("No se pudo aceptar la invitación: "+Auth.errKey(e.message)); return false; }
+}
+// Engancha tras login exitoso (parchamos doLogin):
+const _origDoLogin = Auth.doLogin;
+Auth.doLogin = async function(){
+  const email=(document.getElementById("auEmail")||{}).value;
+  const password=(document.getElementById("auPass")||{}).value;
+  try {
+    await api("/api/auth/login",{method:"POST",body:{email,password}});
+    ME = (await api("/api/auth/me")).user;
+    await _consumePendingInvite();
+    bootstrap();
+  } catch(e){ Auth.err(Auth.errKey(e.message)); }
+};
 
 bootstrap();
 
