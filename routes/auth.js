@@ -72,9 +72,14 @@ router.post("/register", registerLimiter, async (req, res) => {
 
     const appUrl = (process.env.APP_URL || "").replace(/\/$/, "");
     const link = `${appUrl}/#/verify?token=${rawToken}`;
-    await emailService.sendVerificationEmail({ to: email, displayName, verifyUrl: link });
+    const emailResult = await emailService.sendVerificationEmail({ to: email, displayName, verifyUrl: link });
 
-    res.status(201).json({ ok: true, requiresEmailVerification: true });
+    res.status(201).json({
+      ok: true,
+      requiresEmailVerification: true,
+      emailSent: emailResult.ok === true,
+      emailDev: emailResult.dev === true, // true si imprimió en consola
+    });
   } catch (e) {
     console.error("[auth/register]", e);
     res.status(500).json({ error: "error_servidor" });

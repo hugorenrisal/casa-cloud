@@ -22,28 +22,53 @@ function esc(s) {
     ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c]));
 }
 
+// Extrae URLs de un texto plano (para mostrarlas en consola cuando no hay SMTP real).
+function extractUrls(text) {
+  return (text || "").match(/https?:\/\/[^\s]+/g) || [];
+}
+
+function logEmailToConsole({ to, from, subject, text }) {
+  const urls = extractUrls(text);
+  console.log("\n\x1b[33m╔══════════════════════════════════════════════╗\x1b[0m");
+  console.log("\x1b[33m  📧 EMAIL (modo consola — sin Resend real)\x1b[0m");
+  console.log("\x1b[33m╚══════════════════════════════════════════════╝\x1b[0m");
+  console.log("  Para:", to);
+  console.log("  De:", from);
+  console.log("  Asunto:", subject);
+  if (urls.length) {
+    console.log("\n\x1b[32m  🔗 ENLACE (cópialo en el navegador):\x1b[0m");
+    urls.forEach(u => console.log("\x1b[36m  " + u + "\x1b[0m"));
+  } else {
+    console.log("  Texto:", text);
+  }
+  console.log("\x1b[33m══════════════════════════════════════════════\x1b[0m\n");
+}
+
 async function sendMail({ to, subject, html, text }) {
   const from = process.env.EMAIL_FROM || "Casa <noreply@example.com>";
   const r = getResend();
   if (!r) {
-    console.log("\n========== [EMAIL DEV — sin Resend] ==========");
-    console.log("To:", to);
-    console.log("From:", from);
-    console.log("Subject:", subject);
-    console.log("Text:", text || "(sólo HTML)");
-    console.log("HTML preview (200 chars):", String(html).slice(0, 200), "...");
-    console.log("=============================================\n");
+    logEmailToConsole({ to, from, subject, text });
     return { ok: true, dev: true };
   }
   try {
     const result = await r.emails.send({ from, to, subject, html, text });
     if (result.error) {
-      console.error("[email] Resend error:", result.error);
-      return { ok: false, error: result.error };
+      const errMsg = result.error?.message || JSON.stringify(result.error);
+      const hint = errMsg.includes("not verified") || errMsg.includes("domain")
+        ? "\n  ⚠️  El dominio del remitente no está verificado en Resend.\n  → EMAIL_FROM debe usar un dominio verificado en https://resend.com/domains\n  → Para pruebas sin dominio: EMAIL_FROM=onboarding@resend.dev (solo tu propio email)"
+        : "";
+      console.error("\x1b[31m[email] Error Resend:\x1b[0m", errMsg, hint);
+      // Fallback: mostrar el enlace en consola aunque Resend falle,
+      // para que el dev pueda completar el flujo sin email real.
+      logEmailToConsole({ to, from, subject, text });
+      return { ok: false, error: errMsg };
     }
-    return { ok: true, id: result.data && result.data.id };
+    console.log("\x1b[32m[email] Enviado OK ✓\x1b[0m id=" + (result.data?.id || "?") + " to=" + to);
+    return { ok: true, id: result.data?.id };
   } catch (e) {
-    console.error("[email] excepción enviando:", e.message);
+    console.error("\x1b[31m[email] Excepción:\x1b[0m", e.message);
+    logEmailToConsole({ to, from, subject, text });
     return { ok: false, error: e.message };
   }
 }

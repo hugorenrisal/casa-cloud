@@ -1383,8 +1383,14 @@ const Auth = {
     const password=(document.getElementById("auPass")||{}).value;
     const displayName=(document.getElementById("auName")||{}).value;
     try {
-      await api("/api/auth/register",{method:"POST",body:{email,password,displayName}});
-      alert("Cuenta creada. Te hemos enviado un email para confirmar tu correo.");
+      const r=await api("/api/auth/register",{method:"POST",body:{email,password,displayName}});
+      if(r.emailDev){
+        alert("Cuenta creada ✓\n\nEl servidor no tiene email configurado: el enlace de verificación se ha impreso en la CONSOLA del servidor (terminal donde ejecutas npm start). Cópialo y pégalo en el navegador.");
+      } else if(!r.emailSent){
+        alert("Cuenta creada ✓\n\nNo se pudo enviar el email de verificación. Revisa la consola del servidor para ver el enlace. Comprueba que RESEND_API_KEY y EMAIL_FROM están bien configurados en .env");
+      } else {
+        alert("Cuenta creada ✓ Te hemos enviado un email de confirmación. Revisa tu bandeja de entrada (y la carpeta de spam).");
+      }
       Auth.show("login");
     } catch(e){ Auth.err(Auth.errKey(e.message)); }
   },
