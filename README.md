@@ -7,6 +7,10 @@ App familiar de gestión de tareas, paga semanal, menús y recompensas, con aute
 - **Email:** Gmail SMTP con la cuenta de la familia (o impresión por consola en dev).
 - **Persistencia:** PostgreSQL (Neon / Supabase / local).
 
+> 📖 **¿No eres desarrollador?** Usa la **[GUÍA DE INSTALACIÓN](GUIA-INSTALACION.md)**: explica
+> paso a paso, sin jerga, cómo configurar el envío de correos y poner la app en el ordenador y
+> en los móviles de la familia.
+
 ## Requisitos
 
 - Node.js 18+
@@ -21,13 +25,15 @@ git clone https://github.com/hugorenrisal/casa-cloud.git
 cd casa-cloud
 npm install
 cp .env.example .env
-# editar .env con DATABASE_URL, JWT_SECRET, RESEND_API_KEY, etc.
+# editar .env con DATABASE_URL, JWT_SECRET, GMAIL_USER, GMAIL_APP_PASSWORD, etc.
 npm start
 ```
 
 Abre `http://localhost:3000`.
 
-> Si no defines `RESEND_API_KEY`, los emails se imprimen por **consola** en lugar de enviarse — útil en desarrollo. Copia la URL del email desde la terminal y pégala en el navegador.
+> Si no defines `GMAIL_USER` / `GMAIL_APP_PASSWORD`, los emails se imprimen por **consola** en lugar de enviarse — útil en desarrollo. Copia la URL del email desde la terminal y pégala en el navegador.
+>
+> Para probar el envío real: `node test-email.js tu@correo.com`
 
 ### Generar `JWT_SECRET`
 
@@ -51,8 +57,9 @@ Ver `.env.example`. Las críticas:
 
 ## Flujos
 
-1. **Registro** → email + contraseña + nombre. Recibe email de verificación.
-2. **Verificación** → click en enlace del email.
+1. **Registro** → email + contraseña + nombre. La cuenta queda activa al momento.
+2. ~~Verificación por email~~ → **desactivada temporalmente** (el código está en
+   `_email_disabled/`, con instrucciones para reactivarlo en su `README.md`).
 3. **Login** → JWT cookie httpOnly (7 días).
 4. **Onboarding** → elige rol (padre o hijo).
 5. **Padre** → crea familia. Invita por email a co-padres e hijos.
