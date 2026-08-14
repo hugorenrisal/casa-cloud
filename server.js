@@ -31,6 +31,36 @@ app.use(express.static(path.join(__dirname, "public")));
 // Salud
 app.get("/api/health", (req, res) => res.json({ ok: true, db: hasDatabase() }));
 
+// ---------------------------------------------------------------------------
+//  Verificación de dominio para la app de Android (TWA).
+//  Es lo que permite que la app instalada abra a pantalla completa en vez de
+//  con la barra del navegador. La huella SHA-256 la da Google Play DESPUÉS de
+//  subir la app por primera vez; se pone en la variable de entorno
+//  ANDROID_FINGERPRINT para no tener que tocar el código.
+//  Ruta pública a propósito: Google la lee sin estar autenticado.
+// ---------------------------------------------------------------------------
+app.get("/.well-known/assetlinks.json", (req, res) => {
+  const huella = (process.env.ANDROID_FINGERPRINT || "").trim();
+  const paquete = process.env.ANDROID_PACKAGE || "com.casa.tareas";
+  res.type("application/json");
+  if (!huella) {
+    return res.status(503).json({
+      error: "Falta ANDROID_FINGERPRINT",
+      comoArreglarlo:
+        "Play Console -> Integridad de la app -> copia el SHA-256 de la clave de firma " +
+        "y pegalo en la variable de entorno ANDROID_FINGERPRINT del servidor.",
+    });
+  }
+  res.json([{
+    relation: ["delegate_permission/common.handle_all_urls"],
+    target: {
+      namespace: "android_app",
+      package_name: paquete,
+      sha256_cert_fingerprints: huella.split(",").map((h) => h.trim()).filter(Boolean),
+    },
+  }]);
+});
+
 // API
 app.use("/api/auth", authRoutes);
 app.use("/api/onboarding", onboardingRoutes);

@@ -4,3 +4,11 @@ data.json
 .env.local
 *.log
 .DS_Store
+
+# Firma de la app Android. Si se filtra, cualquiera puede publicar
+# actualizaciones falsas de tu app. Si se PIERDE, no podrás actualizarla nunca.
+*.keystore
+*.jks
+casa-android/android/
+casa-android/*.aab
+casa-android/*.apk

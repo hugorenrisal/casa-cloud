@@ -1,0 +1,89 @@
+// ============================================================================
+//  Service worker de "Casa".
+//
+//  REGLA IMPORTANTE: aquí NO se cachea nada de /api/.
+//  El estado de la familia es compartido y se sincroniza cada 4 segundos; si el
+//  service worker sirviera respuestas guardadas de la API, los dispositivos
+//  verían datos viejos y volveríamos a tener el problema de estado obsoleto que
+//  ya costó arreglar. Solo se guarda el "cascarón" (HTML, iconos, manifest),
+//  que es lo que permite que la app abra al instante y muestre un mensaje
+//  decente cuando no hay conexión.
+// ============================================================================
+const VERSION = "casa-v1";
+const CASCARON = [
+  "/",
+  "/manifest.webmanifest",
+  "/iconos/icono-192.png",
+  "/iconos/icono-512.png",
+  "/iconos/icono-512-maskable.png",
+  "/iconos/apple-touch-icon.png",
+];
+
+self.addEventListener("install", (evento) => {
+  evento.waitUntil(
+    caches.open(VERSION)
+      .then((c) => c.addAll(CASCARON))
+      .then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener("activate", (evento) => {
+  evento.waitUntil(
+    caches.keys()
+      .then((claves) => Promise.all(
+        claves.filter((k) => k !== VERSION).map((k) => caches.delete(k))
+      ))
+      .then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener("fetch", (evento) => {
+  const peticion = evento.request;
+  const url = new URL(peticion.url);
+
+  // Solo se gestiona lo de este mismo servidor y solo lecturas.
+  if (url.origin !== self.location.origin || peticion.method !== "GET") return;
+
+  // La API y el login NUNCA pasan por caché: siempre a la red, sin excepción.
+  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/.well-known/")) return;
+
+  // Navegación (abrir la app): red primero; si no hay conexión, el cascarón.
+  if (peticion.mode === "navigate") {
+    evento.respondWith(
+      fetch(peticion)
+        .then((respuesta) => {
+          const copia = respuesta.clone();
+          caches.open(VERSION).then((c) => c.put("/", copia)).catch(() => {});
+          return respuesta;
+        })
+        .catch(() => caches.match("/").then((r) => r || respuestaSinConexion()))
+    );
+    return;
+  }
+
+  // Recursos estáticos (iconos, manifest): caché primero, y si no, red.
+  evento.respondWith(
+    caches.match(peticion).then((guardada) => guardada || fetch(peticion).then((respuesta) => {
+      if (respuesta.ok) {
+        const copia = respuesta.clone();
+        caches.open(VERSION).then((c) => c.put(peticion, copia)).catch(() => {});
+      }
+      return respuesta;
+    }))
+  );
+});
+
+function respuestaSinConexion() {
+  return new Response(
+    '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>Casa · sin conexión</title>' +
+    '<div style="font-family:system-ui,sans-serif;background:#fef6ea;color:#43352a;min-height:100vh;' +
+    'display:grid;place-items:center;text-align:center;padding:24px;margin:0">' +
+    '<div><div style="font-size:48px">🏠</div><h1 style="font-size:22px">Sin conexión</h1>' +
+    '<p style="color:#9c8a76;max-width:320px">No se puede conectar con el servidor de la familia. ' +
+    'Comprueba tu conexión y vuelve a intentarlo.</p>' +
+    '<button onclick="location.reload()" style="font:inherit;font-weight:700;background:#ff7a59;color:#fff;' +
+    'border:none;padding:12px 20px;border-radius:14px">Reintentar</button></div></div>',
+    { headers: { "Content-Type": "text/html; charset=utf-8" } }
+  );
+}

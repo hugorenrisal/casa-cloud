@@ -1,0 +1,25 @@
+[
+  {
+    "_COMENTARIO": [
+      "Esto es SOLO una plantilla de referencia, para que veas qué forma tiene el archivo.",
+      "NO hace falta que lo subas a ningún sitio ni que lo edites a mano:",
+      "el servidor ya lo genera solo en /.well-known/assetlinks.json (ver server.js).",
+      "",
+      "Tú únicamente tienes que poner la huella SHA-256 en la variable de entorno",
+      "ANDROID_FINGERPRINT del servidor. La huella te la da Google Play Console",
+      "DESPUES de subir la app por primera vez:",
+      "   Play Console -> Integridad de la app -> Firma de apps de Google Play",
+      "",
+      "Para comprobar que funciona, abre en el navegador:",
+      "   https://casa-cloud.onrender.com/.well-known/assetlinks.json"
+    ],
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.casa.tareas",
+      "sha256_cert_fingerprints": [
+        "AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99"
+      ]
+    }
+  }
+]

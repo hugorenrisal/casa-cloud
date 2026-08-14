@@ -1,0 +1,50 @@
+{
+  "_COMENTARIO": [
+    "Configuración de Bubblewrap para generar la app de Android (TWA).",
+    "",
+    "Ya está apuntando a casa-cloud.onrender.com: no hay que tocar nada para compilar.",
+    "Si algún día cambias de dirección (por ejemplo, a un dominio propio), cambia",
+    "'host', 'iconUrl', 'maskableIconUrl', 'webManifestUrl' y 'fullScopeUrl',",
+    "sube 'appVersionCode' y vuelve a subir el .aab a Google Play.",
+    "",
+    "'packageId' es el identificador permanente de la app en Google Play:",
+    "una vez publicada NO se puede cambiar nunca."
+  ],
+
+  "packageId": "com.casa.tareas",
+  "host": "casa-cloud.onrender.com",
+  "name": "Casa · tareas en familia",
+  "launcherName": "Casa",
+  "display": "standalone",
+  "themeColor": "#fff5e9",
+  "themeColorDark": "#fff5e9",
+  "navigationColor": "#fef6ea",
+  "navigationColorDark": "#fef6ea",
+  "navigationDividerColor": "#efe1cc",
+  "navigationDividerColorDark": "#efe1cc",
+  "backgroundColor": "#fef6ea",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://casa-cloud.onrender.com/iconos/icono-512.png",
+  "maskableIconUrl": "https://casa-cloud.onrender.com/iconos/icono-512-maskable.png",
+  "splashScreenFadeOutDuration": 300,
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://casa-cloud.onrender.com/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": { "enabled": false },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://casa-cloud.onrender.com/",
+  "minSdkVersion": 21,
+  "orientation": "default",
+
+  "signingKey": {
+    "path": "./casa-firma.keystore",
+    "alias": "casa"
+  }
+}

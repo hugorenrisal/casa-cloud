@@ -6,6 +6,12 @@
 <meta name="theme-color" content="#fff5e9" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <title>Casa · tareas en familia</title>
+<meta name="description" content="Organiza las tareas del hogar en familia: tareas fijas y adicionales, paga, niveles y menús semanales." />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="icon" type="image/png" sizes="192x192" href="/iconos/icono-192.png" />
+<link rel="apple-touch-icon" href="/iconos/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-title" content="Casa" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
@@ -1537,6 +1543,14 @@ async function _consumePendingInvite(){
   catch(e){ alert("No se pudo aceptar la invitación: "+Auth.errKey(e.message)); return false; }
 }
 bootstrap();
+
+// Service worker: hace la app instalable (requisito de Google Play para poder
+// publicarla como TWA) y que abra al instante. Nunca cachea /api/ — ver sw.js.
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>{
+    navigator.serviceWorker.register("/sw.js").catch(()=>{ /* sin SW la app funciona igual */ });
+  });
+}
 
 </script>
 </body>
