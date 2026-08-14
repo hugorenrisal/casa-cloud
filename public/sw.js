@@ -9,7 +9,11 @@
 //  que es lo que permite que la app abra al instante y muestre un mensaje
 //  decente cuando no hay conexión.
 // ============================================================================
-const VERSION = "casa-v1";
+// OJO: al cambiar cualquier archivo de CASCARON hay que SUBIR ESTE NÚMERO.
+// Si no, los dispositivos que ya tengan la app instalada seguirán sirviendo la
+// copia vieja guardada en su caché y no verán el cambio nunca.
+// v2 (ago 2026): iconos de iOS regenerados sin transparencia.
+const VERSION = "casa-v2";
 const CASCARON = [
   "/",
   "/manifest.webmanifest",
@@ -17,6 +21,9 @@ const CASCARON = [
   "/iconos/icono-512.png",
   "/iconos/icono-512-maskable.png",
   "/iconos/apple-touch-icon.png",
+  "/iconos/apple-touch-icon-167.png",
+  "/iconos/apple-touch-icon-152.png",
+  "/iconos/apple-touch-icon-120.png",
 ];
 
 self.addEventListener("install", (evento) => {

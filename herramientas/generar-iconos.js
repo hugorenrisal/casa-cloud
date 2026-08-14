@@ -84,9 +84,19 @@ function escribirPng(ruta, ancho, alto, pixeles) {
 }
 
 // --- Dibujo del icono -------------------------------------------------------
-// escala: 0 = el dibujo llena el lienzo (icono normal)
-//         >0 = deja ese margen proporcional (icono maskable, que Android recorta)
-function dibujar(tam, margen) {
+// opciones:
+//   margen        proporción de aire alrededor del dibujo (0 = llena el lienzo)
+//   sinRecorte    true  = fondo OPACO que llena todo el cuadrado, sin esquinas
+//                         redondeadas ni transparencia. Obligatorio para el
+//                         icono de Apple (iOS descarta o ennegrece los PNG con
+//                         canal alfa) y para los "maskable" de Android, que
+//                         recorta el sistema con su propia forma.
+//                 false = cuadrado redondeado con las esquinas transparentes.
+//   zonaSegura    con sinRecorte, qué proporción del centro ocupa el dibujo,
+//                 para que no se coma nada el recorte del sistema.
+function dibujar(tam, margen, opciones) {
+  const sinRecorte = !!(opciones && opciones.sinRecorte);
+  const zonaSegura = (opciones && opciones.zonaSegura) || 0.76;
   const px = Buffer.alloc(tam * tam * 4);
   const poner = (x, y, [r, g, b], a = 255) => {
     if (x < 0 || y < 0 || x >= tam || y >= tam) return;
@@ -101,14 +111,16 @@ function dibujar(tam, margen) {
     px[i + 3] = Math.round(ao * 255);
   };
 
-  // Zona útil (el maskable deja aire alrededor porque Android recorta)
-  const m = Math.round(tam * margen);
+  // --- Geometría del FONDO ---
+  // Con sinRecorte el fondo llena todo el lienzo y queda opaco.
+  const m = sinRecorte ? 0 : Math.round(tam * margen);
   const lado = tam - m * 2;
-  const radio = lado * 0.235;            // esquinas redondeadas, como las tarjetas
+  const radio = sinRecorte ? 0 : lado * 0.235;  // esquinas como las tarjetas
   const cx0 = m, cy0 = m, cx1 = m + lado, cy1 = m + lado;
 
   // Cobertura de un píxel dentro del cuadrado redondeado (con suavizado)
   function coberturaFondo(x, y) {
+    if (sinRecorte) return 1;             // opaco de borde a borde
     const MUESTRAS = 3, paso = 1 / MUESTRAS;
     let dentro = 0;
     for (let sy = 0; sy < MUESTRAS; sy++) {
@@ -134,14 +146,18 @@ function dibujar(tam, margen) {
     }
   }
 
-  // La casita, centrada en la zona útil
-  const u = lado / 100;                   // unidad relativa
-  const centroX = cx0 + lado / 2;
-  const tejadoY = cy0 + lado * 0.30;      // vértice del tejado
-  const aleroY  = cy0 + lado * 0.52;      // base del tejado
-  const baseY   = cy0 + lado * 0.74;      // suelo de la casa
-  const medioAncho = lado * 0.30;         // medio ancho del tejado
-  const muroMedio  = lado * 0.205;        // medio ancho del cuerpo
+  // --- Geometría del CONTENIDO (la casita) ---
+  // Con sinRecorte se encoge al centro para sobrevivir al recorte del sistema.
+  const ladoC = sinRecorte ? tam * zonaSegura : lado;
+  const oxC = sinRecorte ? (tam - ladoC) / 2 : cx0;
+  const oyC = sinRecorte ? (tam - ladoC) / 2 : cy0;
+
+  const centroX = oxC + ladoC / 2;
+  const tejadoY = oyC + ladoC * 0.30;     // vértice del tejado
+  const aleroY  = oyC + ladoC * 0.52;     // base del tejado
+  const baseY   = oyC + ladoC * 0.74;     // suelo de la casa
+  const medioAncho = ladoC * 0.30;        // medio ancho del tejado
+  const muroMedio  = ladoC * 0.205;       // medio ancho del cuerpo
 
   for (let y = 0; y < tam; y++) {
     for (let x = 0; x < tam; x++) {
@@ -159,7 +175,7 @@ function dibujar(tam, margen) {
           // Cuerpo: rectángulo
           if (!hit && fy > aleroY && fy <= baseY && Math.abs(fx - centroX) <= muroMedio) hit = true;
           // Puerta: se recorta del cuerpo
-          if (hit && fy > baseY - lado * 0.155 && Math.abs(fx - centroX) <= lado * 0.072) hit = false;
+          if (hit && fy > baseY - ladoC * 0.155 && Math.abs(fx - centroX) <= ladoC * 0.072) hit = false;
           if (hit) dentro++;
         }
       }
@@ -174,16 +190,37 @@ function dibujar(tam, margen) {
 fs.mkdirSync(SALIDA, { recursive: true });
 
 const trabajos = [
+  // --- PWA / Android: cuadrado redondeado con esquinas transparentes ---
   { archivo: "icono-192.png", tam: 192, margen: 0 },
   { archivo: "icono-512.png", tam: 512, margen: 0 },
-  // Los iconos "maskable" los recorta Android (círculo, cuadrado redondeado…).
-  // Google exige que lo importante quepa en el 80% central: de ahí el margen.
-  { archivo: "icono-512-maskable.png", tam: 512, margen: 0.12 },
-  { archivo: "apple-touch-icon.png", tam: 180, margen: 0 },
+
+  // --- Android "maskable": lo recorta el sistema con su propia forma ---
+  // Tiene que ser OPACO y llenar todo el cuadrado; si tuviera las esquinas
+  // transparentes se verían negras al aplicar la máscara.
+  { archivo: "icono-512-maskable.png", tam: 512, sinRecorte: true, zonaSegura: 0.72 },
+
+  // --- iOS ("Añadir a pantalla de inicio") ---
+  // iOS NO admite transparencia aquí: compone el alfa sobre negro y en varias
+  // versiones descarta el icono entero (queda sin icono). Por eso van opacos y
+  // sin redondear: el redondeo lo aplica iOS.
+  { archivo: "apple-touch-icon.png", tam: 180, sinRecorte: true, zonaSegura: 0.80 },
+  { archivo: "apple-touch-icon-167.png", tam: 167, sinRecorte: true, zonaSegura: 0.80 }, // iPad Pro
+  { archivo: "apple-touch-icon-152.png", tam: 152, sinRecorte: true, zonaSegura: 0.80 }, // iPad
+  { archivo: "apple-touch-icon-120.png", tam: 120, sinRecorte: true, zonaSegura: 0.80 }, // iPhone antiguos
 ];
 
 for (const t of trabajos) {
-  const bytes = escribirPng(path.join(SALIDA, t.archivo), t.tam, t.tam, dibujar(t.tam, t.margen));
-  console.log("  " + t.archivo.padEnd(26) + t.tam + "x" + t.tam + "  " + (bytes / 1024).toFixed(1) + " kB");
+  const px = dibujar(t.tam, t.margen || 0, { sinRecorte: t.sinRecorte, zonaSegura: t.zonaSegura });
+  const bytes = escribirPng(path.join(SALIDA, t.archivo), t.tam, t.tam, px);
+  const nota = t.sinRecorte ? "opaco" : "con transparencia";
+  console.log("  " + t.archivo.padEnd(30) + (t.tam + "x" + t.tam).padEnd(10) +
+              (bytes / 1024).toFixed(1).padStart(6) + " kB   " + nota);
 }
-console.log("\nIconos generados en public/iconos/");
+
+// iOS busca /apple-touch-icon.png en la raíz del sitio si no encuentra la
+// etiqueta <link>. Se deja una copia ahí como red de seguridad.
+fs.copyFileSync(
+  path.join(SALIDA, "apple-touch-icon.png"),
+  path.join(__dirname, "..", "public", "apple-touch-icon.png")
+);
+console.log("\nIconos generados en public/iconos/ (+ copia en la raíz para iOS)");
