@@ -4,14 +4,15 @@ App familiar de gestión de tareas, paga semanal, menús y recompensas, con aute
 
 - **Backend:** Node.js + Express + PostgreSQL.
 - **Auth:** propia (bcrypt + JWT en cookie httpOnly).
-- **Email:** [Resend](https://resend.com) (o impresión por consola en dev).
+- **Email:** Gmail SMTP con la cuenta de la familia (o impresión por consola en dev).
 - **Persistencia:** PostgreSQL (Neon / Supabase / local).
 
 ## Requisitos
 
 - Node.js 18+
 - PostgreSQL alcanzable por `DATABASE_URL` (recomendado: [Neon Free](https://neon.tech))
-- (Opcional) cuenta en Resend si quieres enviar emails reales
+- (Opcional) una cuenta de Gmail con contraseña de aplicación si quieres enviar emails reales
+  (https://myaccount.google.com/apppasswords)
 
 ## Setup local
 
@@ -42,8 +43,9 @@ Ver `.env.example`. Las críticas:
 |---|---|---|
 | `DATABASE_URL` | sí | PostgreSQL con SSL |
 | `JWT_SECRET` | sí | ≥32 caracteres aleatorios |
-| `RESEND_API_KEY` | en producción | si vacía → emails a consola |
-| `EMAIL_FROM` | en producción | dominio verificado en Resend |
+| `GMAIL_USER` | en producción | Gmail completo; si falta → emails a consola |
+| `GMAIL_APP_PASSWORD` | en producción | contraseña de aplicación de 16 letras, no la normal |
+| `EMAIL_FROM` | no | por defecto usa GMAIL_USER |
 | `APP_URL` | sí | base de los enlaces de email |
 | `PORT` | no | por defecto 3000 |
 
@@ -106,7 +108,7 @@ casa-cloud/
 │   └── state.js
 ├── services/
 │   ├── authService.js        # bcrypt, JWT, tokens, validaciones
-│   ├── emailService.js       # Resend + plantillas
+│   ├── emailService.js       # Gmail SMTP + plantillas
 │   └── familyService.js
 └── public/
     └── index.html            # SPA (auth + app)
@@ -120,8 +122,8 @@ casa-cloud/
 4. Variables de entorno en Render:
    - `DATABASE_URL` (Neon)
    - `JWT_SECRET` (genera uno largo y aleatorio)
-   - `RESEND_API_KEY`
-   - `EMAIL_FROM=Casa <noreply@tudominio.com>` (verifica dominio en Resend)
+   - `GMAIL_USER=tunombre@gmail.com`
+   - `GMAIL_APP_PASSWORD` (contraseña de aplicación, no la normal)
    - `APP_URL=https://<tu-app>.onrender.com`
    - `NODE_ENV=production`
 5. Despliega. Las migraciones corren automáticamente al arrancar.

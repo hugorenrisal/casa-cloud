@@ -1,20 +1,27 @@
 // ============================================================================
-//  Servicio de email transaccional vía Resend.
-//  Si RESEND_API_KEY no está definida, los emails se imprimen en consola
-//  (útil en desarrollo). En producción siempre debe estar configurado.
+//  Servicio de email transaccional vía Gmail SMTP.
+//  Envía con la cuenta de Gmail de la familia y su "contraseña de aplicación"
+//  (GMAIL_USER + GMAIL_APP_PASSWORD). Sin dominio propio, sin verificación
+//  de DNS: cualquier Gmail normal puede mandar así hasta ~500 correos/día,
+//  de sobra para invitaciones familiares.
+//  Si faltan las variables, los emails se imprimen en consola (desarrollo).
 // ============================================================================
-let resendClient = null;
+let transportador = null;
 
-function getResend() {
-  if (resendClient !== null) return resendClient;
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    resendClient = false; // marca como "no configurado"
+function getTransportador() {
+  if (transportador !== null) return transportador;
+  const usuario = process.env.GMAIL_USER;
+  const clave = process.env.GMAIL_APP_PASSWORD;
+  if (!usuario || !clave) {
+    transportador = false; // marca como "no configurado"
     return false;
   }
-  const { Resend } = require("resend");
-  resendClient = new Resend(apiKey);
-  return resendClient;
+  const nodemailer = require("nodemailer");
+  transportador = nodemailer.createTransport({
+    service: "gmail",
+    auth: { user: usuario, pass: clave },
+  });
+  return transportador;
 }
 
 function esc(s) {
@@ -30,7 +37,7 @@ function extractUrls(text) {
 function logEmailToConsole({ to, from, subject, text }) {
   const urls = extractUrls(text);
   console.log("\n\x1b[33m╔══════════════════════════════════════════════╗\x1b[0m");
-  console.log("\x1b[33m  📧 EMAIL (modo consola — sin Resend real)\x1b[0m");
+  console.log("\x1b[33m  📧 EMAIL (modo consola — sin Gmail configurado)\x1b[0m");
   console.log("\x1b[33m╚══════════════════════════════════════════════╝\x1b[0m");
   console.log("  Para:", to);
   console.log("  De:", from);
@@ -45,29 +52,28 @@ function logEmailToConsole({ to, from, subject, text }) {
 }
 
 async function sendMail({ to, subject, html, text }) {
-  const from = process.env.EMAIL_FROM || "Casa <noreply@example.com>";
-  const r = getResend();
-  if (!r) {
+  const usuario = process.env.GMAIL_USER;
+  const from = process.env.EMAIL_FROM || (usuario ? `Casa <${usuario}>` : "Casa <noreply@example.com>");
+  const t = getTransportador();
+  if (!t) {
     logEmailToConsole({ to, from, subject, text });
     return { ok: true, dev: true };
   }
   try {
-    const result = await r.emails.send({ from, to, subject, html, text });
-    if (result.error) {
-      const errMsg = result.error?.message || JSON.stringify(result.error);
-      const hint = errMsg.includes("not verified") || errMsg.includes("domain")
-        ? "\n  ⚠️  El dominio del remitente no está verificado en Resend.\n  → EMAIL_FROM debe usar un dominio verificado en https://resend.com/domains\n  → Para pruebas sin dominio: EMAIL_FROM=onboarding@resend.dev (solo tu propio email)"
-        : "";
-      console.error("\x1b[31m[email] Error Resend:\x1b[0m", errMsg, hint);
-      // Fallback: mostrar el enlace en consola aunque Resend falle,
-      // para que el dev pueda completar el flujo sin email real.
-      logEmailToConsole({ to, from, subject, text });
-      return { ok: false, error: errMsg };
-    }
-    console.log("\x1b[32m[email] Enviado OK ✓\x1b[0m id=" + (result.data?.id || "?") + " to=" + to);
-    return { ok: true, id: result.data?.id };
+    const info = await t.sendMail({ from, to, subject, html, text });
+    console.log("\x1b[32m[email] Enviado OK ✓\x1b[0m id=" + (info.messageId || "?") + " to=" + to);
+    return { ok: true, id: info.messageId };
   } catch (e) {
-    console.error("\x1b[31m[email] Excepción:\x1b[0m", e.message);
+    const hint = /invalid login|username and password/i.test(e.message || "")
+      ? "\n  ⚠️  Gmail rechazó las credenciales.\n" +
+        "  → GMAIL_USER debe ser la dirección completa (tunombre@gmail.com).\n" +
+        "  → GMAIL_APP_PASSWORD debe ser una CONTRASEÑA DE APLICACIÓN (16 letras),\n" +
+        "    no la contraseña normal de la cuenta. Se genera en\n" +
+        "    https://myaccount.google.com/apppasswords (requiere verificación en dos pasos activada)."
+      : "";
+    console.error("\x1b[31m[email] Error Gmail:\x1b[0m", e.message, hint);
+    // Fallback: mostrar el enlace en consola aunque Gmail falle,
+    // para que se pueda completar el flujo copiándolo a mano mientras tanto.
     logEmailToConsole({ to, from, subject, text });
     return { ok: false, error: e.message };
   }
