@@ -1,6 +1,6 @@
 # 📊 Casa — Estado del proyecto
 
-Revisión del código a 15 de agosto de 2026, **actualizada tras las fases 1-4 de correcciones**.
+Revisión del código a 15 de agosto de 2026, **actualizada tras las fases 1-5 de correcciones**.
 Compara **qué está hecho de verdad** con lo que se espera hoy de una aplicación publicada.
 
 Los porcentajes miden **"listo para usar en producción"**, no "cuánto código hay". Un módulo
@@ -25,7 +25,7 @@ Lo que separa las dos columnas ya es solo accesibilidad, modo oscuro y notificac
 
 | Módulo | % | Estado |
 |---|---|---|
-| **Autenticación** | 90% | bcrypt (12 rondas), JWT en cookie httpOnly + SameSite, tokens opacos guardados como SHA-256, rate limiting. Falta: cambiar contraseña estando dentro |
+| **Autenticación** | 90% | bcrypt (12 rondas), JWT en cookie httpOnly + SameSite, tokens opacos guardados como SHA-256, rate limiting, cambio de contraseña y borrado de cuenta |
 | **Familias y aislamiento** | 90% | Cada consulta filtra por `family_id`. Crear familia, renombrar, expulsar. Falta: transferir la propiedad |
 | **Invitaciones** | 85% | Token de un solo uso, caduca a 7 días, revocar y reenviar, el correo debe coincidir |
 | **Base de datos** | 85% | PostgreSQL con migraciones idempotentes, 8 tablas, se ejecutan al arrancar |
@@ -89,12 +89,12 @@ separarlo.
 | Datos separados por cuenta | ✅ |
 | Permisos comprobados en el servidor | ✅ |
 | Instalable en el móvil | ✅ |
-| Pruebas automatizadas | ✅ 62 |
+| Pruebas automatizadas | ✅ 93 |
 | Aviso de privacidad | ✅ |
 | Funciona sin conexión | 🟠 solo el cascarón |
 | Avisos de pendientes | 🟠 contador, sin push |
-| Borrado de cuenta | ❌ |
-| Cambiar la contraseña | ❌ |
+| Borrado de cuenta | ✅ |
+| Cambiar la contraseña | ✅ |
 | Modo oscuro | ❌ |
 | Accesibilidad revisada | ❌ sin auditar |
 
@@ -110,7 +110,7 @@ separarlo.
 
 ---
 
-## Lo que se arregló en las fases 1-4
+## Lo que se arregló en las fases 1-5
 
 | | Qué pasaba |
 |---|---|
@@ -131,5 +131,5 @@ separarlo.
 ## Nota sobre estos números
 
 Son una valoración razonada, no una medida objetiva: no existe un estándar que diga "una app
-está al 91%". Lo objetivo es la lista de lo que falta, que sale de leer el código. Si algún
+está al 95%". Lo objetivo es la lista de lo que falta, que sale de leer el código. Si algún
 porcentaje te parece optimista o pesimista, lo que importa son las filas de las tablas.
