@@ -240,7 +240,31 @@
       // En pantallas estrechas se quita el texto largo para que todo quepa en
       // una sola línea.
       "@media(max-width:560px){#demoBar .demo-txt{display:none}#demoBar{gap:6px;padding-left:10px;padding-right:10px}" +
-      "#demoBar .demo-btn{padding:6px 9px;font-size:12px}}";
+      "#demoBar .demo-btn{padding:6px 9px;font-size:12px}}" +
+
+      // ---- Marco de teléfono (solo en la vista del hijo, en pantalla ancha) ----
+      // El fondo de alrededor se apaga para que el móvil destaque.
+      "body.demo-marco{background:#e8dcc9;background-image:none}" +
+      "#demoMarco{position:relative;width:390px;height:800px;margin:26px auto 84px;" +
+      "border:13px solid #241d19;border-radius:52px;overflow:hidden;background:var(--bg);" +
+      "box-shadow:0 28px 70px rgba(36,29,25,.38), 0 0 0 2px #3b302a;" +
+      // Este transform es lo que ancla los position:fixed de dentro al marco.
+      "transform:translateZ(0)}" +
+      "#demoMuesca{position:absolute;top:0;left:50%;transform:translateX(-50%);width:150px;height:26px;" +
+      "background:#241d19;border-radius:0 0 18px 18px;z-index:60;pointer-events:none}" +
+      "#demoMarco #mob{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}" +
+      "#demoMarco #mob .phone{max-width:none;min-height:0;padding:62px 16px 104px}" +
+      // Dentro del marco todo pasa de position:fixed a position:absolute.
+      // Con fixed, aun anclándose al marco por el transform, el navegador
+      // resuelve `bottom` contra una caja que no coincide con el borde visible
+      // y las hojas se salían por abajo. Con absolute, el ancla es el marco
+      // (que es position:relative) y encaja exacto.
+      "#demoMarco .modebar,#demoMarco .nav,#demoMarco .sheet,#demoMarco .sheet-bg{position:absolute}" +
+      "#demoMarco .modebar{top:0;left:0;right:0;padding-top:14px}" +
+      "#demoMarco .nav{bottom:0;left:0;right:0;max-width:none;margin:0}" +
+      "#demoMarco .sheet{bottom:0;left:0;right:0;max-width:none;margin:0;max-height:76%}" +
+      "#demoMarco .sheet-bg{inset:0}" +
+      "body.demo-marco .mob .phone{padding-bottom:104px}";
     document.head.appendChild(estilo);
     document.body.classList.add("demo-activa");
 
@@ -258,7 +282,51 @@
       ? (estrecho ? "👀 Hija" : "👀 Ver como hija")
       : (estrecho ? "👀 Padre" : "👀 Ver como padre");
   }
-  window.addEventListener("resize", actualizarBotonRol);
+
+  // --- Marco de móvil ------------------------------------------------------
+  // En un ordenador, la vista del hijo se vería como una columna estrecha
+  // perdida en medio de la pantalla. Para que la demo enseñe la app tal y como
+  // se ve de verdad, se mete dentro de un marco con forma de teléfono.
+  //
+  // El truco está en el `transform` del marco: hace que los elementos con
+  // position:fixed de dentro (la barra de navegación, las hojas que suben)
+  // se anclen al marco en vez de a la ventana del navegador.
+  const IDS_MOVIL = ["modebar", "mob", "sheetBg", "sheet"];
+
+  function aplicarMarco(activar) {
+    let marco = document.getElementById("demoMarco");
+    if (activar) {
+      if (!marco) {
+        marco = document.createElement("div");
+        marco.id = "demoMarco";
+        marco.innerHTML = '<div id="demoMuesca"></div>';
+        document.body.appendChild(marco);
+      }
+      IDS_MOVIL.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el && el.parentNode !== marco) marco.appendChild(el);
+      });
+      document.body.classList.add("demo-marco");
+    } else {
+      if (marco) {
+        IDS_MOVIL.forEach((id) => {
+          const el = document.getElementById(id);
+          if (el) document.body.appendChild(el);
+        });
+        marco.remove();
+      }
+      document.body.classList.remove("demo-marco");
+    }
+  }
+
+  // El marco solo tiene sentido si hay sitio: en un móvil de verdad, la app ya
+  // ocupa toda la pantalla y enmarcarla sería absurdo.
+  const cabeMarco = () => window.innerWidth >= 900 && window.innerHeight >= 700;
+  function revisarMarco() {
+    aplicarMarco(comoQuien === "child" && cabeMarco());
+  }
+
+  window.addEventListener("resize", () => { actualizarBotonRol(); revisarMarco(); });
 
   // Se rearranca la app entera en vez de tocar su variable ME: esa está
   // declarada con let dentro del script principal y no es accesible desde
@@ -268,6 +336,7 @@
     comoQuien = comoQuien === "parent" ? "child" : "parent";
     actualizarBotonRol();
     if (typeof window.bootstrap === "function") await window.bootstrap();
+    revisarMarco();
   }
 
   async function reiniciarDemo() {
@@ -275,6 +344,7 @@
     comoQuien = "parent";
     actualizarBotonRol();
     if (typeof window.bootstrap === "function") await window.bootstrap();
+    revisarMarco();
   }
 
   function salirDeLaDemo() {
