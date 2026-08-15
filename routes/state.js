@@ -129,8 +129,10 @@ function aplicarCiclos(state) {
 // GET /api/state — devuelve estado de la familia del usuario, con members sincronizados
 router.get("/state", requireAuth, requireEmailVerified, requireFamily, async (req, res) => {
   try {
-    const r = await query("SELECT data FROM family_state WHERE family_id=$1", [req.user.familyId]);
+    const r = await query("SELECT data, version FROM family_state WHERE family_id=$1",
+      [req.user.familyId]);
     let state = r.rows[0]?.data;
+    let version = r.rows[0]?.version || 1;
     if (!state) {
       state = emptyFamilyState();
       await query(
@@ -145,12 +147,19 @@ router.get("/state", requireAuth, requireEmailVerified, requireFamily, async (re
     // Sin esto, el cliente rellenaría en local sin guardar y el sondeo vería
     // diferencia en cada vuelta (la pantalla se repintaba cada 4 segundos).
     if (aplicarCiclos(state)) {
-      await query(
-        `INSERT INTO family_state (family_id, data, updated_at) VALUES ($1, $2::jsonb, now())
-         ON CONFLICT (family_id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()`,
+      const up = await query(
+        `INSERT INTO family_state (family_id, data, version, updated_at)
+           VALUES ($1, $2::jsonb, 2, now())
+         ON CONFLICT (family_id) DO UPDATE
+           SET data = EXCLUDED.data, version = family_state.version + 1, updated_at = now()
+         RETURNING version`,
         [req.user.familyId, JSON.stringify(state)]
       );
+      version = up.rows[0].version;
     }
+    // La versión viaja con el estado: el cliente la devuelve al guardar y así
+    // el servidor sabe si escribió alguien más mientras tanto.
+    state._version = version;
     res.json(state);
   } catch (e) {
     console.error("[state/get]", e);
@@ -164,6 +173,10 @@ router.get("/state", requireAuth, requireEmailVerified, requireFamily, async (re
 router.put("/state", requireAuth, requireEmailVerified, requireFamily, async (req, res) => {
   try {
     if (!isValidState(req.body)) return res.status(400).json({ error: "estado_invalido" });
+
+    // Versión desde la que dice venir el cliente (sanitizeState la descarta,
+    // así que se lee del cuerpo original).
+    const versionCliente = Number(req.body._version) || 0;
 
     // 1. Sanear siempre: tipos, longitudes, enumerados y referencias colgantes.
     let incoming = sanitizeState(req.body);
@@ -199,14 +212,28 @@ router.put("/state", requireAuth, requireEmailVerified, requireFamily, async (re
     // puede escribirla desde el cliente.
     calcularRachas(synced, hoyIdx());
 
-    await query(
-      `INSERT INTO family_state (family_id, data, updated_at)
-         VALUES ($1, $2::jsonb, now())
-       ON CONFLICT (family_id) DO UPDATE
-         SET data = EXCLUDED.data, updated_at = now()`,
-      [req.user.familyId, JSON.stringify(synced)]
+    // Escritura con comprobación de versión. Si entre que este dispositivo
+    // leyó el estado y lo guarda ha escrito alguien más, la condición no casa,
+    // no se actualiza nada y se responde 409: el cliente recarga y reaplica su
+    // cambio sobre el estado fresco. Antes ganaba el último y el otro cambio
+    // desaparecía sin que nadie se enterara.
+    const up = await query(
+      `UPDATE family_state
+          SET data = $2::jsonb, version = version + 1, updated_at = now()
+        WHERE family_id = $1 AND ($3 = 0 OR version = $3)
+        RETURNING version`,
+      [req.user.familyId, JSON.stringify(synced), versionCliente]
     );
-    res.json({ ok: true });
+
+    if (!up.rowCount) {
+      const actual = await query("SELECT version FROM family_state WHERE family_id=$1",
+        [req.user.familyId]);
+      return res.status(409).json({
+        error: "version_desfasada",
+        version: actual.rows[0]?.version || 0,
+      });
+    }
+    res.json({ ok: true, version: up.rows[0].version });
   } catch (e) {
     console.error("[state/put]", e);
     res.status(500).json({ error: "error_servidor" });
@@ -224,7 +251,8 @@ router.post("/reset", requireAuth, requireEmailVerified, requireFamily, requireP
       seeded.currentWeek = claveSemana();
       ensureFixedShape(seeded);
       await query(
-        `UPDATE family_state SET data=$1::jsonb, updated_at=now() WHERE family_id=$2`,
+        `UPDATE family_state SET data=$1::jsonb, version=version+1, updated_at=now()
+         WHERE family_id=$2`,
         [JSON.stringify(seeded), req.user.familyId]
       );
       res.json({ ok: true });
@@ -267,7 +295,8 @@ router.post("/restore", requireAuth, requireEmailVerified, requireFamily, requir
       synced.currentWeek = claveSemana();
       ensureFixedShape(synced);
       await query(
-        `UPDATE family_state SET data=$1::jsonb, updated_at=now() WHERE family_id=$2`,
+        `UPDATE family_state SET data=$1::jsonb, version=version+1, updated_at=now()
+         WHERE family_id=$2`,
         [JSON.stringify(synced), req.user.familyId]
       );
       res.json({ ok: true });

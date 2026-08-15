@@ -245,16 +245,80 @@ async function api(url, opts){
 //  ESTADO Y PERSISTENCIA
 // =========================================================================
 let _saveTimer=null, _lastSent=0;
+// Copia del estado tal y como lo entregó el servidor la última vez. Sirve para
+// saber QUÉ he cambiado yo si al guardar resulta que alguien escribió antes.
+let _base=null;
+const marcarBase=()=>{ try{ _base=JSON.parse(JSON.stringify(S)); }catch(e){ _base=null; } };
+
+// Campos que son de este dispositivo y no viajan al servidor.
+const LOCALES=["view","profile","deskTab","mobTab"];
+
+// Fusión por campos: sobre el estado fresco del servidor se vuelven a aplicar
+// los campos que YO había tocado desde mi última lectura.
+// Es una fusión gruesa (por campo de primer nivel), no perfecta: si dos
+// dispositivos tocan el MISMO campo, sigue ganando el último. Pero evita el
+// caso habitual y sangrante: que un hijo marque una tarea y a la vez su padre
+// cambie la paga, y uno de los dos cambios desaparezca sin avisar.
+function fusionarCambios(fresco, mio, base){
+  const salida={...fresco};
+  if(!base) return {...mio, _version:fresco._version};
+  Object.keys(mio).forEach(k=>{
+    if(k==="_version"||LOCALES.includes(k)) return;
+    const yoLoCambie = JSON.stringify(mio[k])!==JSON.stringify(base[k]);
+    if(yoLoCambie) salida[k]=mio[k];
+  });
+  salida._version=fresco._version;
+  return salida;
+}
+
 const Store = {
   read(){ return null; },
   write(s){
     clearTimeout(_saveTimer);
-    _saveTimer=setTimeout(()=>{
+    _saveTimer=setTimeout(async()=>{
       _lastSent=Date.now();
-      api("/api/state",{method:"PUT",body:s}).catch(()=>{ showConn(false); });
+      try{
+        const r=await api("/api/state",{method:"PUT",body:s});
+        S._version=r.version; marcarBase();
+      }catch(e){
+        if(e.status===409 && e.payload && e.payload.error==="version_desfasada"){
+          await resolverConflicto();
+        }else if(e.message!=="sin-pin"){
+          showConn(false);
+        }
+      }
     },250);
   },
 };
+
+// Alguien guardó entre que leí y guardé. Se trae el estado fresco, se le
+// vuelven a aplicar mis cambios y se reintenta UNA vez. Si vuelve a fallar,
+// se adopta el del servidor y se avisa: mejor perder un cambio sabiéndolo que
+// perderlo en silencio.
+let _resolviendo=false;
+async function resolverConflicto(){
+  if(_resolviendo) return;
+  _resolviendo=true;
+  try{
+    const fresco=await api("/api/state");
+    const locales={}; LOCALES.forEach(k=>{ locales[k]=S[k]; });
+    const fusionado=fusionarCambios(fresco, S, _base);
+    S=Object.assign(fusionado, locales);
+    ensureShape();
+    const r=await api("/api/state",{method:"PUT",body:S});
+    S._version=r.version; marcarBase();
+    render({quiet:true});
+  }catch(e){
+    try{
+      const fresco=await api("/api/state");
+      const locales={}; LOCALES.forEach(k=>{ locales[k]=S[k]; });
+      S=Object.assign(fresco, locales);
+      ensureShape(); marcarBase(); render({quiet:true});
+      showConn(true);
+      alert("Otro dispositivo guardó al mismo tiempo y tu último cambio no se pudo aplicar. Revísalo, por favor.");
+    }catch(e2){ showConn(false); }
+  }finally{ _resolviendo=false; }
+}
 function showConn(ok){
   const el=document.getElementById("connDot"); if(!el)return;
   el.style.background = ok? "var(--green)" : "var(--red)";
@@ -1601,6 +1665,7 @@ async function launchApp(){
     S = await api("/api/state");
     showConn(true);
     ensureShape();
+    marcarBase();          // punto de partida para detectar mis propios cambios
     restaurarPestanas();
     // Vista deriva del rol en la familia (padre → desk, hijo → mob)
     S.view = (ME.roleInFamily === "parent") ? "desk" : "mob";
@@ -1645,7 +1710,11 @@ function startPolling(){
       if(JSON.stringify(stripLocal(remote))!==JSON.stringify(stripLocal(S))){
         S=remote; Object.assign(S,local);
         ensureShape();
+        marcarBase();        // lo que acabo de adoptar pasa a ser mi punto de partida
         render({quiet:true}); // sincronización de fondo: sin animación de entrada
+      }else{
+        // Aunque el contenido sea igual, la versión puede haber avanzado.
+        S._version=remote._version;
       }
     }catch(e){
       if(e.status===401){ clearInterval(_poll); ME=null; Auth.show("login"); return; }
@@ -1656,7 +1725,9 @@ function startPolling(){
 // Campos que son de ESTE dispositivo y por tanto no cuentan como "ha cambiado
 // algo en la familia". Sin esto, cambiar de pestaña en un móvil repintaba la
 // pantalla de todos los demás y les movía la sección abierta.
-function stripLocal(o){ const c={...o}; delete c.view; delete c.profile; delete c.deskTab; delete c.mobTab; return c; }
+// _version también se ignora: que suba el contador no es "ha cambiado algo en
+// la familia", y si contara provocaría un repintado en cada vuelta del sondeo.
+function stripLocal(o){ const c={...o}; delete c.view; delete c.profile; delete c.deskTab; delete c.mobTab; delete c._version; return c; }
 
 // ============== UI DE AUTENTICACIÓN ==============
 const Auth = {
