@@ -10,13 +10,12 @@ al 60% funciona pero le falta algo que un usuario echaría en falta.
 
 ## Resumen
 
-| | Antes | Ahora |
+| | Al empezar | Ahora |
 |---|---|---|
-| **Uso familiar privado** | ~78% | **~91%** |
-| **Aplicación publicable en tienda** | ~52% | **~63%** |
+| **Uso familiar privado** | ~78% | **~95%** |
+| **Aplicación publicable en tienda** | ~52% | **~80%** |
 
-La distancia entre las dos columnas son cosas que solo importan al publicar: borrado de cuenta,
-cambio de contraseña y accesibilidad.
+Lo que separa las dos columnas ya es solo accesibilidad, modo oscuro y notificaciones push.
 
 ---
 
@@ -35,10 +34,10 @@ cambio de contraseña y accesibilidad.
 | **Rachas** | **90%** | ✅ *Arreglado.* Se calculan de verdad en el servidor y se arrastran entre semanas. 14 pruebas |
 | **Premios y canje** | **85%** | ✅ *Arreglado.* Flujo completo: el hijo pide (puntos reservados), el padre concede o deniega, con stock y editor de premios |
 | **Menús** | **85%** | ✅ *Arreglado.* Estaban rotos en familias nuevas. Ahora desayuno/comida/cena por día, con base de platos por tipo. Falta la lista de la compra |
-| **Mercado entre hermanos** | 80% | Publicar, "me la quedo", trueque, primas, historial. Falta: que el vendedor confirme el "me la quedo" |
+| **Mercado entre hermanos** | **90%** | ✅ *Arreglado.* "Me la quedo" ya no cierra el trato de golpe: el vendedor acepta o rechaza, como en el trueque |
 | **PWA / instalación** | 85% | Manifest, service worker, iconos correctos en Android y iOS. Falta: aviso de versión nueva |
 | **Demo pública** | 95% | `/demo` sin contraseña, sin tocar la red, con marco de móvil y cambio de rol |
-| **Pruebas automatizadas** | **70%** | ✅ *Nuevo.* 62 pruebas (`npm test`) sobre dinero, reparto, saneado, permisos, rachas, canje y migraciones. Falta: pruebas de las rutas HTTP |
+| **Pruebas automatizadas** | **85%** | **93 pruebas** (`npm test`) sobre dinero, reparto, saneado, permisos, rachas, canje, mercado, cierre de mes, borrado de cuenta y fusión de conflictos |
 
 ### 🟠 A medias
 
@@ -47,26 +46,27 @@ cambio de contraseña y accesibilidad.
 | **Avisos** | 60% | Contador de pendientes en las pestañas (Validar, Premios, Mercado). No hay push ni correo |
 | **Logros / insignias** | 55% | 8 insignias fijas, sin progresión ni aviso al desbloquear |
 | **Copias de seguridad** | 70% | Exportar e importar funcionan. Falta: copia automática |
+| **Cuenta** | **90%** | ✅ *Nuevo.* Cambiar contraseña y borrar la cuenta, avisando si arrastra la familia entera |
+| **Concurrencia** | **85%** | ✅ *Arreglado.* Control por versión: el servidor rechaza escrituras sobre datos viejos y el cliente refunde sus cambios |
 | **Validación de tareas** | 60% | El padre aprueba y rechaza. Falta: **prueba con foto**, y marcar "vencida" sigue siendo manual |
 
 ### 🔴 Sin empezar
 
 | Módulo | % | Problema |
 |---|---|---|
-| **Penalizaciones automáticas** | 0% | Nada vence solo |
-| **Borrado de cuenta** | 0% | ⚠️ Google Play **lo exige** a toda app con registro |
-| **Cambio de contraseña** | 0% | Solo se puede recuperar por correo, no cambiar estando dentro |
+| **Notificaciones push** | 0% | Solo hay contador de pendientes dentro de la app |
 | **Modo oscuro / accesibilidad** | 0% | Sin auditar |
+| **Validación con foto** | 0% | La aprobación sigue siendo de palabra |
 
 ---
 
 ## Deuda técnica que queda
 
-### 🟠 Concurrencia "el último que escribe gana"
+### 🟠 La fusión de conflictos es gruesa
 
-Cada guardado manda **el estado completo**. Si dos dispositivos editan con pocos segundos de
-diferencia, uno pisa al otro sin avisar. Es la mayor debilidad que queda. La solución sería
-pasar a acciones granulares (`POST /api/action`) en vez del blob entero.
+Ya no se pierden cambios en silencio (control por versión + refundido), pero la fusión va **por
+campo de primer nivel**: si dos dispositivos tocan el mismo campo, uno gana — eso sí, avisando.
+La solución fina sería pasar a acciones granulares (`POST /api/action`) en vez del blob entero.
 
 ### 🟠 Verificación de email desactivada
 
@@ -102,12 +102,11 @@ separarlo.
 
 ## Qué haría a continuación
 
-1. **Confirmación del "me la quedo"** en el mercado: hoy se cierra directo y el vendedor se
-   entera después.
-2. **Penalizaciones por vencimiento**, para que el padre no tenga que marcar "vencida" a mano.
-3. **Borrado de cuenta y cambio de contraseña** — los dos requisitos que faltan para Play Store.
-4. **Pruebas de las rutas HTTP**, que hoy solo están cubiertas indirectamente.
-5. **Concurrencia**: pasar de guardar el estado entero a acciones granulares.
+1. **Accesibilidad**: contraste, tamaños de toque y lectores de pantalla. Sin auditar.
+2. **Notificaciones push**, si el contador dentro de la app se queda corto.
+3. **Validación con foto** de las tareas, que estaba en el brief original.
+4. **Modo oscuro**.
+5. **Acciones granulares** en vez del blob, para afinar la fusión de conflictos.
 
 ---
 
@@ -123,6 +122,9 @@ separarlo.
 | **Permisos** | Un hijo podía aprobarse sus tareas desde el navegador |
 | **Rachas falsas** | Los "🔥 N días" eran números escritos a mano |
 | **Canje que no canjeaba** | El botón solo cerraba la ventana |
+| **Mercado sin confirmar** | Un hermano se quedaba tu tarea sin que lo aprobaras |
+| **Historial a ceros** | El archivo mensual guardaba 0 puntos siempre |
+| **Cambios que se pisaban** | Dos dispositivos a la vez y uno perdía su cambio sin avisar |
 
 ---
 
