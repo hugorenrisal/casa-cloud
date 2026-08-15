@@ -9,6 +9,7 @@ const { requireFamily, requireParent } = require("../middleware/requireFamily");
 const { emptyFamilyState, syncMembers, listMembers, ensureFixedShape } =
   require("../services/familyService");
 const { sanitizeState, applyChildLimits } = require("../services/stateGuard");
+const { calcularRachas, cerrarSemanaRachas } = require("../services/rachas");
 
 const router = express.Router();
 
@@ -58,6 +59,9 @@ function iniciarSemanaFijas(state) {
   });
 }
 
+// Día de la semana en el huso de la familia. 0 = lunes … 6 = domingo.
+const hoyIdx = () => (fechaLocal().getUTCDay() + 6) % 7;
+
 // Aplica los reinicios que toquen. Devuelve true si ha cambiado algo.
 function aplicarCiclos(state) {
   const mes = claveMes(), semana = claveSemana();
@@ -66,6 +70,9 @@ function aplicarCiclos(state) {
   if (state.currentMonth !== mes) {
     state.history = state.history || {};
     state.history[state.currentMonth] = { points: { ...(state.monthPoints || {}) } };
+    // Antes de vaciar las casillas hay que guardar la racha encadenada; si no,
+    // se perdería y todos empezarían de cero cada mes.
+    cerrarSemanaRachas(state);
     state.currentMonth = mes;
     state.monthPoints = {};
     state.fixedState = {}; state.extras = []; state.generated = false;
@@ -73,12 +80,15 @@ function aplicarCiclos(state) {
     state.currentWeek = semana;
     cambio = true;
   } else if (state.currentWeek !== semana) {
+    cerrarSemanaRachas(state);
     state.currentWeek = semana;
     if (state.generated) iniciarSemanaFijas(state);
     cambio = true;
   }
 
-  return ensureFixedShape(state) || cambio;
+  const formaCambio = ensureFixedShape(state);
+  const rachaCambio = calcularRachas(state, hoyIdx());
+  return formaCambio || rachaCambio || cambio;
 }
 
 // GET /api/state — devuelve estado de la familia del usuario, con members sincronizados
@@ -150,6 +160,9 @@ router.put("/state", requireAuth, requireEmailVerified, requireFamily, async (re
     const members = await listMembers(req.user.familyId);
     const synced = syncMembers(incoming, members);
     ensureFixedShape(synced); // se guarda ya con forma; el GET no reescribirá
+    // La racha la calcula siempre el servidor a partir de las casillas: nadie
+    // puede escribirla desde el cliente.
+    calcularRachas(synced, hoyIdx());
 
     await query(
       `INSERT INTO family_state (family_id, data, updated_at)

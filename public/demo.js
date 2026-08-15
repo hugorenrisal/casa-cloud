@@ -105,7 +105,11 @@
       ],
       generated: true,
       monthPoints: { ana: 0, leo: 0, mia: 0 },
-      streak: { ana: 6, leo: 1, mia: 12 },
+      // Coherentes con fixedState: en la app real las calcula el servidor a
+      // partir de las casillas (services/rachas.js); aquí van fijas porque la
+      // demo no tiene servidor. Mía encadena semanas, Ana lleva 5 días, y a
+      // Leo se le ha roto: así se ve también ese caso.
+      streak: { ana: 5, leo: 0, mia: 12 },
       history: { "2026-07": { points: { ana: 210, leo: 95, mia: 260 } } },
       dishes: [
         { id: "b1", name: "Tostadas con tomate", type: "desayuno", tags: ["rápido"] },
@@ -131,10 +135,16 @@
         Dom: { desayuno: "b1", comida: "c1", cena: "n3" },
       },
       rewards: [
-        { id: "r1", title: "1 h más de pantalla", cost: 60, type: "Tiempo" },
-        { id: "r2", title: "Elegir la peli del finde", cost: 40, type: "Privilegio" },
-        { id: "r3", title: "Noche sin tareas", cost: 120, type: "Privilegio" },
+        { id: "r1", title: "1 h más de pantalla", cost: 60, type: "Tiempo", stock: null, active: true },
+        { id: "r2", title: "Elegir la peli del finde", cost: 40, type: "Privilegio", stock: 1, active: true },
+        { id: "r3", title: "Noche sin tareas", cost: 120, type: "Privilegio", stock: null, active: true },
+        { id: "r4", title: "Cena a elegir", cost: 80, type: "Plan", stock: 2, active: true },
       ],
+      // Una solicitud ya pedida, para que se vea el contador en "Premios"
+      redemptions: [
+        { id: "c1", rewardId: "r2", childId: "mia", cost: 40, status: "pending", at: Date.now() - 7200000, resolvedAt: 0 },
+      ],
+      streakCarry: {},
       listings: [{
         id: "l1", sellerId: "leo", assignmentId: "x3", taskId: "e3",
         pointsOffered: 8, acceptsTrade: true, note: "Tengo entreno, ¿alguien?",

@@ -184,7 +184,11 @@ function sanitizeState(entrada) {
     members, fixedTasks, extraTasks, fixedState, extras,
     generated: s.generated === true,
     monthPoints: porHijo(s.monthPoints),
+    // streak la recalcula el servidor en cada escritura; streakCarry es lo que
+    // se arrastra de semanas anteriores y hay que conservarlo (si se perdiera,
+    // la racha volvería a cero cada lunes).
     streak: porHijo(s.streak),
+    streakCarry: porHijo(s.streakCarry),
     history, dishes, menu, rewards, redemptions, listings, offers, marketLog,
   };
 }
@@ -203,7 +207,7 @@ function applyChildLimits(entrante, anterior, childId) {
   // Campos que un hijo nunca escribe: se restauran y se avisa del intento.
   const SOLO_PADRES = [
     "members", "fixedTasks", "extraTasks", "rewards", "dishes", "menu",
-    "fixedPay", "rate", "streak", "history", "monthPoints", "generated",
+    "fixedPay", "rate", "streak", "streakCarry", "history", "monthPoints", "generated",
   ];
   SOLO_PADRES.forEach((k) => {
     if (k in prev && JSON.stringify(salida[k]) !== JSON.stringify(prev[k])) {
