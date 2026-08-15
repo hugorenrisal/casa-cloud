@@ -1,7 +1,7 @@
 # 📊 Casa — Estado del proyecto
 
-Auditoría del código a 15 de agosto de 2026. Revisa **qué está hecho de verdad** frente a lo
-que se espera hoy de una aplicación publicada.
+Revisión del código a 15 de agosto de 2026, **actualizada tras las fases 1-4 de correcciones**.
+Compara **qué está hecho de verdad** con lo que se espera hoy de una aplicación publicada.
 
 Los porcentajes miden **"listo para usar en producción"**, no "cuánto código hay". Un módulo
 al 60% funciona pero le falta algo que un usuario echaría en falta.
@@ -10,13 +10,13 @@ al 60% funciona pero le falta algo que un usuario echaría en falta.
 
 ## Resumen
 
-| | |
-|---|---|
-| **Uso familiar privado (lo que quieres ahora)** | **~78%** |
-| **Aplicación publicable en tienda** | **~52%** |
+| | Antes | Ahora |
+|---|---|---|
+| **Uso familiar privado** | ~78% | **~91%** |
+| **Aplicación publicable en tienda** | ~52% | **~63%** |
 
-La diferencia está en cosas que solo importan al publicar: borrado de cuenta, notificaciones,
-avisos legales, pruebas automatizadas.
+La distancia entre las dos columnas son cosas que solo importan al publicar: borrado de cuenta,
+cambio de contraseña y accesibilidad.
 
 ---
 
@@ -26,70 +26,58 @@ avisos legales, pruebas automatizadas.
 
 | Módulo | % | Estado |
 |---|---|---|
-| **Autenticación** | 90% | bcrypt (12 rondas), JWT en cookie httpOnly + SameSite, tokens opacos guardados como SHA-256, rate limiting en login/registro/recuperación. Falta: cambiar contraseña estando dentro, y la verificación de email está desactivada |
-| **Familias y aislamiento** | 90% | Cada consulta filtra por `family_id`; una familia no puede ver otra. Crear familia, renombrar, expulsar miembros. Falta: transferir la propiedad, y que un usuario pueda estar en dos familias |
-| **Invitaciones** | 85% | Token de un solo uso, caduca a 7 días, revocar y reenviar, comprobación de que el correo coincide. Depende de que el envío de correo esté configurado |
-| **Base de datos** | 85% | PostgreSQL con migraciones idempotentes, 8 tablas, se ejecutan solas al arrancar. Falta: índices revisados y copia de seguridad automática |
-| **Motor de tareas y dinero** | 85% | Fijas diarias/semanales, adicionales repartidas por peso (LPT), regla del 75%/100%, niveles y puntos. Probado numéricamente. Falta: el reparto no compensa entre semanas |
-| **Mercado entre hermanos** | 80% | Publicar, "me la quedo", trueque con oferta y aceptación, primas en puntos, historial. Falta: que el vendedor confirme el "me la quedo" |
-| **PWA / instalación** | 85% | Manifest, service worker, iconos correctos en Android y iOS, funciona sin conexión el cascarón. Falta: aviso en la app cuando hay versión nueva |
+| **Autenticación** | 90% | bcrypt (12 rondas), JWT en cookie httpOnly + SameSite, tokens opacos guardados como SHA-256, rate limiting. Falta: cambiar contraseña estando dentro |
+| **Familias y aislamiento** | 90% | Cada consulta filtra por `family_id`. Crear familia, renombrar, expulsar. Falta: transferir la propiedad |
+| **Invitaciones** | 85% | Token de un solo uso, caduca a 7 días, revocar y reenviar, el correo debe coincidir |
+| **Base de datos** | 85% | PostgreSQL con migraciones idempotentes, 8 tablas, se ejecutan al arrancar |
+| **Motor de tareas y dinero** | **95%** | Reglas del 75%/100%, reparto LPT, niveles, primas del mercado. **Ahora con 20 pruebas automáticas** |
+| **Permisos y saneado** | **90%** | ✅ *Nuevo.* El servidor sanea todo lo que se guarda y hace cumplir los roles: un hijo no puede aprobarse tareas ni tocar las de sus hermanos |
+| **Rachas** | **90%** | ✅ *Arreglado.* Se calculan de verdad en el servidor y se arrastran entre semanas. 14 pruebas |
+| **Premios y canje** | **85%** | ✅ *Arreglado.* Flujo completo: el hijo pide (puntos reservados), el padre concede o deniega, con stock y editor de premios |
+| **Menús** | **85%** | ✅ *Arreglado.* Estaban rotos en familias nuevas. Ahora desayuno/comida/cena por día, con base de platos por tipo. Falta la lista de la compra |
+| **Mercado entre hermanos** | 80% | Publicar, "me la quedo", trueque, primas, historial. Falta: que el vendedor confirme el "me la quedo" |
+| **PWA / instalación** | 85% | Manifest, service worker, iconos correctos en Android y iOS. Falta: aviso de versión nueva |
 | **Demo pública** | 95% | `/demo` sin contraseña, sin tocar la red, con marco de móvil y cambio de rol |
+| **Pruebas automatizadas** | **70%** | ✅ *Nuevo.* 62 pruebas (`npm test`) sobre dinero, reparto, saneado, permisos, rachas, canje y migraciones. Falta: pruebas de las rutas HTTP |
 
 ### 🟠 A medias
 
 | Módulo | % | Qué falta |
 |---|---|---|
-| **Menús** | 70% | Editar por día y generar semana funcionan. Falta la **lista de la compra** (se descartó, pero hoy se espera) |
-| **Logros / insignias** | 55% | La rejilla existe y las condiciones se evalúan, pero son 8 fijas y no hay progresión ni aviso al desbloquear |
-| **Copias de seguridad** | 70% | Exportar e importar JSON funcionan. Falta: copia automática programada |
-| **Validación de tareas** | 60% | El padre aprueba/rechaza. Falta: **prueba con foto**, y marcar "vencida" es manual |
+| **Avisos** | 60% | Contador de pendientes en las pestañas (Validar, Premios, Mercado). No hay push ni correo |
+| **Logros / insignias** | 55% | 8 insignias fijas, sin progresión ni aviso al desbloquear |
+| **Copias de seguridad** | 70% | Exportar e importar funcionan. Falta: copia automática |
+| **Validación de tareas** | 60% | El padre aprueba y rechaza. Falta: **prueba con foto**, y marcar "vencida" sigue siendo manual |
 
-### 🔴 Incompleto o solo aparente
+### 🔴 Sin empezar
 
 | Módulo | % | Problema |
 |---|---|---|
-| **Premios / canje** | **25%** | ⚠️ **El botón "Enviar solicitud" no hace nada**: llama a `closeSheet()` y se acaba ahí. No descuenta puntos, no crea ninguna solicitud, y al padre no le llega nada. Además el padre **no tiene ninguna pantalla para editar los premios**: están fijos en el código |
-| **Rachas (🔥 días)** | **10%** | ⚠️ Los números que se ven (4, 2, 6 días) son **valores de ejemplo escritos a mano**. No se calculan nunca. La insignia "Racha 3" se basa en ese dato falso |
-| **Notificaciones** | **0%** | No hay ninguna. Ni push, ni por correo, ni dentro de la app. Nadie se entera de que tiene algo por validar o de que le han aprobado una tarea |
-| **Penalizaciones automáticas** | **0%** | Nada vence solo. El padre tiene que marcar "vencida" a mano tarea por tarea |
-| **Borrado de cuenta** | **0%** | ⚠️ Google Play **lo exige** a toda app con registro. Hoy no hay forma de borrar una cuenta desde la app |
-| **Pruebas automatizadas** | **0%** | No hay ni una. Cada cambio se comprueba a mano; una regresión puede pasar inadvertida |
+| **Penalizaciones automáticas** | 0% | Nada vence solo |
+| **Borrado de cuenta** | 0% | ⚠️ Google Play **lo exige** a toda app con registro |
+| **Cambio de contraseña** | 0% | Solo se puede recuperar por correo, no cambiar estando dentro |
+| **Modo oscuro / accesibilidad** | 0% | Sin auditar |
 
 ---
 
-## Deuda técnica que conviene conocer
-
-### 🔴 Escapado de textos incompleto (XSS)
-
-En `public/index.html`, los **nombres de miembros, los iconos y los colores** se insertan en el
-HTML **sin escapar** (unas 40 apariciones). Además `esc()` no cubre la comilla simple.
-
-Para explotarlo hay que **ser ya miembro de la familia**, así que no es un agujero abierto a
-internet — pero un hijo podría inyectar contenido en el panel de su padre. Esto **ya se corrigió
-en el prototipo** y **no se ha traído aquí**.
-
-### 🔴 El servidor apenas valida el estado
-
-`isValidState()` solo comprueba que `fixedTasks` y `extraTasks` sean arrays. Cualquier miembro
-de la familia puede guardar prácticamente cualquier JSON, incluidos textos con HTML o
-referencias a tareas que no existen (que rompen la pantalla de todos). El prototipo tiene un
-saneador completo que tampoco se ha traído.
+## Deuda técnica que queda
 
 ### 🟠 Concurrencia "el último que escribe gana"
 
 Cada guardado manda **el estado completo**. Si dos dispositivos editan con pocos segundos de
-diferencia, uno pisa al otro sin avisar. Lo vi ocurrir durante las pruebas.
-
-### 🟠 Cualquier miembro puede escribir todo el estado
-
-`PUT /api/state` solo pide estar en la familia. Un hijo podría, con las herramientas del
-navegador, aprobarse sus propias tareas o cambiarse la paga. Las comprobaciones de rol están en
-la interfaz, no en el servidor.
+diferencia, uno pisa al otro sin avisar. Es la mayor debilidad que queda. La solución sería
+pasar a acciones granulares (`POST /api/action`) en vez del blob entero.
 
 ### 🟠 Verificación de email desactivada
 
-Está apagada a propósito (`_email_disabled/`). Cualquiera puede registrarse con un correo que no
-es suyo. Ahora que el envío funciona, se puede reactivar.
+Apagada a propósito (`_email_disabled/`, con instrucciones para reactivarla). Se decidió dejarla
+así para no poner fricción a los críos: como solo se entra por invitación a un correo concreto,
+la invitación ya prueba que ese correo existe.
+
+### 🟢 Todo el cliente en un único `index.html`
+
+~1.700 líneas con estilos y lógica dentro. Funciona y se prueba, pero para crecer conviene
+separarlo.
 
 ---
 
@@ -99,34 +87,47 @@ es suyo. Ahora que el envío funciona, se puede reactivar.
 |---|---|
 | Registro y sesión seguros | ✅ |
 | Datos separados por cuenta | ✅ |
+| Permisos comprobados en el servidor | ✅ |
 | Instalable en el móvil | ✅ |
+| Pruebas automatizadas | ✅ 62 |
+| Aviso de privacidad | ✅ |
 | Funciona sin conexión | 🟠 solo el cascarón |
-| Notificaciones | ❌ |
+| Avisos de pendientes | 🟠 contador, sin push |
 | Borrado de cuenta | ❌ |
 | Cambiar la contraseña | ❌ |
 | Modo oscuro | ❌ |
 | Accesibilidad revisada | ❌ sin auditar |
-| Pruebas automatizadas | ❌ |
-| Aviso de privacidad | ✅ |
 
 ---
 
-## Qué arreglaría, por orden
+## Qué haría a continuación
 
-1. **Las rachas y el canje de premios**, o quitarlos de la interfaz. Hoy prometen algo que no
-   ocurre, y eso en una app para niños se nota enseguida: pulsan "Canjear", no pasa nada, y
-   pierden la confianza en el sistema.
-2. **Traer el saneado y el escapado del prototipo.** Es trabajo ya hecho y probado.
-3. **Comprobar los permisos en el servidor**, no solo en la pantalla.
-4. **Notificaciones** — aunque sea un simple contador de "pendientes" al abrir.
-5. **Borrado de cuenta**, imprescindible antes de publicar en Play Store.
-6. **Unas pruebas mínimas** sobre las reglas del dinero y el reparto.
+1. **Confirmación del "me la quedo"** en el mercado: hoy se cierra directo y el vendedor se
+   entera después.
+2. **Penalizaciones por vencimiento**, para que el padre no tenga que marcar "vencida" a mano.
+3. **Borrado de cuenta y cambio de contraseña** — los dos requisitos que faltan para Play Store.
+4. **Pruebas de las rutas HTTP**, que hoy solo están cubiertas indirectamente.
+5. **Concurrencia**: pasar de guardar el estado entero a acciones granulares.
+
+---
+
+## Lo que se arregló en las fases 1-4
+
+| | Qué pasaba |
+|---|---|
+| **Bucle de repintado** | La pantalla se refrescaba sola cada 4 s. Medido ahora: **0 repintados en 26 s** |
+| **Pestañas compartidas** | Cambiar de sección le movía la pantalla a los demás dispositivos |
+| **Reinicio por reloj** | Un móvil con la fecha mal puesta reiniciaba el mes de toda la familia |
+| **Menús rotos** | Las familias nuevas veían `[object Object]` |
+| **XSS** | 48 sitios pintaban nombres, iconos y colores sin escapar |
+| **Permisos** | Un hijo podía aprobarse sus tareas desde el navegador |
+| **Rachas falsas** | Los "🔥 N días" eran números escritos a mano |
+| **Canje que no canjeaba** | El botón solo cerraba la ventana |
 
 ---
 
 ## Nota sobre estos números
 
-Son una valoración razonada, no una medida objetiva: no existe un estándar que diga
-"una app está al 73%". Lo que sí es objetivo es la lista de lo que falta, que sale de leer el
-código. Si algún porcentaje te parece optimista o pesimista, lo importante son las filas de las
-tablas, no la cifra.
+Son una valoración razonada, no una medida objetiva: no existe un estándar que diga "una app
+está al 91%". Lo objetivo es la lista de lo que falta, que sale de leer el código. Si algún
+porcentaje te parece optimista o pesimista, lo que importa son las filas de las tablas.
