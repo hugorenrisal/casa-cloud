@@ -1409,10 +1409,89 @@ function cancelRedeem(id){
   S.redemptions=redemptions().filter(x=>x.id!==id);
   save(); render();
 }
-function mobSwitchUser(){
-  openSheet(`<h3 style="margin-bottom:16px">Cuenta</h3>
-    <div class="dim" style="font-size:13px;margin-bottom:14px">Has entrado como <b>${ME?esc(ME.email):"?"}</b></div>
-    <button class="btn w" onclick="Auth.doLogout()">Cerrar sesión</button>`); }
+function mobSwitchUser(){ sheetCuenta(); }
+
+// Hoja de cuenta: cerrar sesión, cambiar contraseña y borrar la cuenta.
+// Vale igual para el móvil del hijo y para el panel del padre.
+function sheetCuenta(){
+  openSheet(`<h3 style="margin-bottom:16px">Tu cuenta</h3>
+    <div class="dim" style="font-size:13px;margin-bottom:16px">Has entrado como <b>${ME?esc(ME.email):"?"}</b></div>
+    <button class="btn w" onclick="sheetCambiarPassword()">Cambiar contraseña</button>
+    <button class="btn w" style="margin-top:10px" onclick="Auth.doLogout()">Cerrar sesión</button>
+    <button class="btn ghost w" style="margin-top:18px;color:var(--red)" onclick="sheetBorrarCuenta()">Borrar mi cuenta</button>`);
+}
+
+function sheetCambiarPassword(){
+  openSheet(`<h3 style="margin-bottom:16px">Cambiar contraseña</h3>
+    <div class="field"><label>Contraseña actual</label><input id="pwActual" type="password" autocomplete="current-password"></div>
+    <div class="field"><label>Nueva contraseña</label><input id="pwNueva" type="password" autocomplete="new-password" placeholder="mínimo 8 caracteres"></div>
+    <div class="field"><label>Repite la nueva</label><input id="pwNueva2" type="password" autocomplete="new-password"></div>
+    <div id="pwErr" style="color:var(--red);font-size:13px;font-weight:700;min-height:18px;margin-bottom:8px"></div>
+    <button class="btn primary w" id="pwBtn" onclick="doCambiarPassword()">Guardar</button>`);
+}
+
+async function doCambiarPassword(){
+  const actual=$("pwActual").value, nueva=$("pwNueva").value, nueva2=$("pwNueva2").value;
+  const err=$("pwErr");
+  if(nueva.length<8){ err.textContent="La nueva debe tener al menos 8 caracteres."; return; }
+  if(nueva!==nueva2){ err.textContent="Las dos nuevas no coinciden."; return; }
+  const btn=$("pwBtn"); btn.disabled=true; btn.textContent="Guardando…";
+  try{
+    await api("/api/auth/change-password",{method:"POST",body:{actual,nueva}});
+    closeSheet();
+    alert("Contraseña cambiada.");
+  }catch(e){
+    err.textContent = {
+      password_actual_incorrecta:"La contraseña actual no es correcta.",
+      password_corta_min_8:"La nueva debe tener al menos 8 caracteres.",
+      password_igual:"La nueva es igual que la actual.",
+    }[e.message] || "No se pudo cambiar. Inténtalo de nuevo.";
+    btn.disabled=false; btn.textContent="Guardar";
+  }
+}
+
+// Antes de borrar se consulta al servidor qué se lleva por delante, para
+// avisarlo en la propia pantalla en vez de sorprender después.
+async function sheetBorrarCuenta(){
+  openSheet(`<h3 style="margin-bottom:10px">Borrar mi cuenta</h3><div class="dim">Comprobando…</div>`);
+  let info;
+  try{ info = await api("/api/auth/delete-preview"); }
+  catch(e){ openSheet(`<h3>No se pudo comprobar</h3><p class="dim">Inténtalo de nuevo.</p><button class="btn w" onclick="closeSheet()">Cerrar</button>`); return; }
+
+  const aviso = info.arrastraFamilia
+    ? `<div class="mcard" style="border-color:var(--red);background:#fff6f6">
+        <b style="color:var(--red)">Esto borrará toda la familia</b>
+        <p class="dim" style="font-size:13px;margin-top:6px">Eres el único padre/madre de <b>${esc(info.familyName||"tu familia")}</b>.
+        Si borras tu cuenta se borrará también la familia entera${info.otrosMiembros>0?` y los datos de ${info.otrosMiembros} miembro(s) más`:""}:
+        tareas, puntos, historial y premios. No se puede deshacer.</p>
+        <p class="dim" style="font-size:13px;margin-top:6px">Si solo quieres irte tú, invita antes a otro padre/madre.</p>
+      </div>`
+    : `<div class="mcard"><p class="dim" style="font-size:13px">Se borrará tu cuenta y saldrás de
+        <b>${esc(info.familyName||"la familia")}</b>. El resto de la familia seguirá igual.</p></div>`;
+
+  openSheet(`<h3 style="margin-bottom:12px">Borrar mi cuenta</h3>
+    ${aviso}
+    <div class="field" style="margin-top:14px"><label>Escribe tu contraseña para confirmar</label>
+      <input id="delPw" type="password" autocomplete="current-password"></div>
+    <div id="delErr" style="color:var(--red);font-size:13px;font-weight:700;min-height:18px;margin-bottom:8px"></div>
+    <button class="btn w" id="delBtn" style="background:var(--red);color:#fff;border-color:var(--red)" onclick="doBorrarCuenta()">Borrar definitivamente</button>
+    <button class="btn ghost w" style="margin-top:8px" onclick="closeSheet()">Cancelar</button>`);
+}
+
+async function doBorrarCuenta(){
+  const password=$("delPw").value, err=$("delErr");
+  if(!password){ err.textContent="Escribe tu contraseña."; return; }
+  if(!confirm("Última confirmación: esto es irreversible. ¿Borrar tu cuenta?")) return;
+  const btn=$("delBtn"); btn.disabled=true; btn.textContent="Borrando…";
+  try{
+    await api("/api/auth/delete-account",{method:"POST",body:{password}});
+    location.href="/";
+  }catch(e){
+    err.textContent = e.message==="password_incorrecta"
+      ? "La contraseña no es correcta." : "No se pudo borrar. Inténtalo de nuevo.";
+    btn.disabled=false; btn.textContent="Borrar definitivamente";
+  }
+}
 
 // Sheet helpers
 function openSheet(h){ $("sheet").innerHTML=`<div class="grab"></div>${h}`; $("sheet").classList.add("open"); $("sheetBg").classList.add("open"); }
@@ -1423,13 +1502,13 @@ function closeSheet(){ $("sheet").classList.remove("open"); $("sheetBg").classLi
 //  RENDER PRINCIPAL
 // =========================================================================
 function renderModebar(){
-  const who = S.view==="desk" ? "🖥️ Padre / madre" : ("📱 "+(member(S.profile)?member(S.profile).name:"Hijo/a"));
+  const who = S.view==="desk" ? "🖥️ Padre / madre" : ("📱 "+esc(member(S.profile)?member(S.profile).name:"Hijo/a"));
   $("modebar").innerHTML=`<span style="font-weight:800">🏠 Casa</span>
     <span class="dim" style="font-size:12px">· ${who}</span>
     <span class="spacer"></span>
-    <span class="dim" style="font-size:12px">${monthName(S.currentMonth)}</span>
+    <span class="dim" style="font-size:12px">${esc(monthName(S.currentMonth))}</span>
     <span id="connDot" title="Conectado" style="width:9px;height:9px;border-radius:50%;background:var(--green);display:inline-block;margin:0 4px 0 8px"></span>
-    <button class="btn ghost sm" style="padding:5px 10px" onclick="Auth.doLogout()">Cerrar sesión</button>`;
+    <button class="btn ghost sm" style="padding:5px 10px" onclick="sheetCuenta()">Mi cuenta</button>`;
 }
 // quiet: repintado provocado por el sondeo, no por el usuario. Se salta la
 // animación de entrada para que la pantalla no "parpadee" sola cada pocos

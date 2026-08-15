@@ -12,6 +12,7 @@ const {
 } = require("../services/authService");
 const emailService = require("../services/emailService");
 const { requireAuth } = require("../middleware/requireAuth");
+const { consecuenciasDeBorrar, borrarCuenta } = require("../services/cuentaService");
 
 const router = express.Router();
 
@@ -204,6 +205,77 @@ router.post("/logout", (req, res) => {
 // ---------------------------------------------------------------------------
 router.get("/me", requireAuth, (req, res) => {
   res.json({ user: req.user });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/auth/change-password { actual, nueva }
+// Cambiar la contraseña estando dentro. Hasta ahora solo se podía recuperar
+// por correo, lo que obligaba a tener el email funcionando para algo tan
+// básico como cambiarla porque sí.
+// ---------------------------------------------------------------------------
+router.post("/change-password", requireAuth, loginLimiter, async (req, res) => {
+  try {
+    const actual = req.body?.actual;
+    const nueva = req.body?.nueva;
+    if (!isValidPassword(nueva)) return res.status(400).json({ error: "password_corta_min_8" });
+    if (actual === nueva) return res.status(400).json({ error: "password_igual" });
+
+    const r = await query("SELECT password_hash FROM users WHERE id = $1", [req.user.id]);
+    if (!r.rowCount) return res.status(401).json({ error: "no_autenticado" });
+
+    // Se exige la actual: si no, bastaría con una sesión abierta en un móvil
+    // prestado para dejar al dueño fuera de su propia cuenta.
+    const correcta = await comparePassword(String(actual || ""), r.rows[0].password_hash);
+    if (!correcta) return res.status(403).json({ error: "password_actual_incorrecta" });
+
+    await query("UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2",
+      [await hashPassword(nueva), req.user.id]);
+
+    // Los enlaces de recuperación pendientes dejan de valer.
+    await query("DELETE FROM password_reset_tokens WHERE user_id = $1", [req.user.id]);
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error("[auth/change-password]", e);
+    res.status(500).json({ error: "error_servidor" });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/auth/delete-preview
+// Qué pasará si borra la cuenta. Se consulta ANTES de confirmar, para poder
+// avisar de que se lleva la familia por delante en vez de sorprender después.
+// ---------------------------------------------------------------------------
+router.get("/delete-preview", requireAuth, async (req, res) => {
+  try {
+    res.json(await consecuenciasDeBorrar(req.user.id));
+  } catch (e) {
+    console.error("[auth/delete-preview]", e);
+    res.status(500).json({ error: "error_servidor" });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/auth/delete-account { password }
+// Borrado definitivo. Google Play lo exige a toda app con registro.
+// ---------------------------------------------------------------------------
+router.post("/delete-account", requireAuth, loginLimiter, async (req, res) => {
+  try {
+    const r = await query("SELECT password_hash FROM users WHERE id = $1", [req.user.id]);
+    if (!r.rowCount) return res.status(401).json({ error: "no_autenticado" });
+
+    // Se pide la contraseña: borrar es irreversible y no puede pasar por
+    // dejarse la sesión abierta.
+    const correcta = await comparePassword(String(req.body?.password || ""), r.rows[0].password_hash);
+    if (!correcta) return res.status(403).json({ error: "password_incorrecta" });
+
+    const resultado = await borrarCuenta(req.user.id);
+    res.clearCookie(AUTH_COOKIE_NAME, { ...authCookieOptions(), maxAge: 0 });
+    res.json(resultado);
+  } catch (e) {
+    console.error("[auth/delete-account]", e);
+    res.status(500).json({ error: "error_servidor" });
+  }
 });
 
 // ---------------------------------------------------------------------------
