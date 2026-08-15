@@ -8,6 +8,7 @@ const { requireAuth, requireEmailVerified } = require("../middleware/requireAuth
 const { requireFamily, requireParent } = require("../middleware/requireFamily");
 const { emptyFamilyState, syncMembers, listMembers, ensureFixedShape } =
   require("../services/familyService");
+const { sanitizeState, applyChildLimits } = require("../services/stateGuard");
 
 const router = express.Router();
 
@@ -118,16 +119,23 @@ router.get("/state", requireAuth, requireEmailVerified, requireFamily, async (re
 router.put("/state", requireAuth, requireEmailVerified, requireFamily, async (req, res) => {
   try {
     if (!isValidState(req.body)) return res.status(400).json({ error: "estado_invalido" });
-    const incoming = req.body;
 
-    // Los hijos NO pueden modificar members, fixedTasks, extraTasks, rewards, fixedPay, rate
+    // 1. Sanear siempre: tipos, longitudes, enumerados y referencias colgantes.
+    let incoming = sanitizeState(req.body);
+
+    // 2. Reglas de rol. Un hijo necesita escribir para marcar sus tareas, pero
+    //    no puede aprobárselas ni tocar las de sus hermanos. Estas reglas
+    //    tienen que estar aquí: en la interfaz se saltan con el navegador.
     if (req.user.roleInFamily === "child") {
       const cur = await query("SELECT data FROM family_state WHERE family_id=$1",
         [req.user.familyId]);
       const prev = cur.rows[0]?.data || emptyFamilyState();
-      // Sobrescribimos campos protegidos con la versión anterior
-      const PROTECTED = ["members", "fixedTasks", "extraTasks", "rewards", "fixedPay", "rate", "dishes"];
-      PROTECTED.forEach(k => { if (k in prev) incoming[k] = prev[k]; });
+      const { estado, rechazos } = applyChildLimits(incoming, prev, req.user.id);
+      if (rechazos.length) {
+        console.warn("[state/put] cambios rechazados a hijo", req.user.id, rechazos);
+        return res.status(403).json({ error: "cambio_no_permitido", detalles: rechazos.slice(0, 10) });
+      }
+      incoming = estado;
     }
 
     // Los ciclos los marca el reloj del servidor, no el del dispositivo. Si el
@@ -203,8 +211,9 @@ router.post("/restore", requireAuth, requireEmailVerified, requireFamily, requir
   async (req, res) => {
     try {
       if (!isValidState(req.body)) return res.status(400).json({ error: "copia_invalida" });
+      // Una copia puede venir de cualquier sitio: se sanea igual que un PUT.
       const members = await listMembers(req.user.familyId);
-      const synced = syncMembers(req.body, members);
+      const synced = syncMembers(sanitizeState(req.body), members);
       // La copia puede ser de otra semana: se sella con el ciclo actual.
       synced.currentMonth = claveMes();
       synced.currentWeek = claveSemana();
