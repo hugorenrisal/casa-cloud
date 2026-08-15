@@ -263,6 +263,18 @@ const DAYS=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
 const monthName=k=>{const[y,m]=String(k||"").split("-");return ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"][+m-1]+" "+y};
 // Las claves de semana y mes las calcula el SERVIDOR (routes/state.js) y llegan
 // en S.currentWeek / S.currentMonth. El cliente no las genera nunca.
+// ---- Menús -----------------------------------------------------------------
+// Un plato es {id, name, type, tags} y el menú guarda IDs de plato:
+//   S.menu = { Lun:{desayuno:"d1", comida:"d3", cena:""}, ... }
+// Guardar el id y no el nombre permite renombrar un plato sin romper el menú.
+const MEALS=["desayuno","comida","cena"];
+const MEAL_LABEL={desayuno:"Desayuno",comida:"Comida",cena:"Cena"};
+const PLATO_DESCONOCIDO={id:"",name:"—",type:"comida",tags:[]};
+const dishById=id=>(S.dishes||[]).find(p=>p&&p.id===id)||PLATO_DESCONOCIDO;
+const dishesOfType=t=>(S.dishes||[]).filter(p=>p&&p.type===t);
+const menuAt=(day,meal)=>((S.menu||{})[day]||{})[meal]||"";
+const dishNameAt=(day,meal)=>{const id=menuAt(day,meal); return id?dishById(id).name:""};
+
 const todayIdx=()=>(new Date().getDay()+6)%7; // Lun=0 ... Dom=6
 const DAYLBL=["L","M","X","J","V","S","D"];
 const isDaily=t=>t.freq==="daily";
@@ -284,6 +296,29 @@ function ensureShape(){
   if(Array.isArray(S.extras)) S.extras.forEach(x=>{ if(x.listed===undefined) x.listed=false; });
   if(Array.isArray(S.fixedTasks)) S.fixedTasks.forEach(t=>{ if(!t.freq) t.freq="daily"; });
   if(!S.fixedState || typeof S.fixedState!=="object") S.fixedState={};
+
+  // --- Migración de los menús -----------------------------------------------
+  // Las familias antiguas guardaban los platos como texto suelto y el menú
+  // como un plato por día. Ahora un plato es un objeto y cada día tiene
+  // desayuno, comida y cena. Sin esta conversión, esas familias verían
+  // "[object Object]" en el selector de platos.
+  if(!Array.isArray(S.dishes)) S.dishes=[];
+  S.dishes=S.dishes.map((p,i)=> (p && typeof p==="object")
+    ? {id:p.id||("d"+i), name:p.name||"", type:MEALS.includes(p.type)?p.type:"comida", tags:Array.isArray(p.tags)?p.tags:[]}
+    : {id:"d"+i, name:String(p), type:"comida", tags:[]}
+  ).filter(p=>p.name);
+  if(!S.menu || typeof S.menu!=="object") S.menu={};
+  DAYS.forEach(d=>{
+    const v=S.menu[d];
+    if(v && typeof v==="object"){
+      MEALS.forEach(m=>{ if(typeof v[m]!=="string") v[m]=""; });
+    }else{
+      // Antes era el nombre de un plato: se busca su id y se pone como comida.
+      const encontrado=S.dishes.find(p=>p.name===v);
+      S.menu[d]={desayuno:"", comida:encontrado?encontrado.id:"", cena:""};
+    }
+  });
+
   delete S.swaps; delete S.fixedInstances;
 }
 
@@ -482,14 +517,41 @@ function setProfile(p){ S.profile=p; S.deskTab="home"; S.mobTab="home"; recordar
 function setDeskTab(t){ S.deskTab=t; recordarPestanas(); render() }
 function setMobTab(t){ S.mobTab=t; recordarPestanas(); render() }
 function setLoad(id,v){ member(id).load=v; save(); render() }
-function setMenu(day,dish){ S.menu[day]=dish; save(); render() }
-function regenMenu(){ const d=[...S.dishes]; DAYS.forEach(day=>{ S.menu[day]=d[Math.floor(Math.random()*d.length)] }); save(); render() }
+function setMenu(day,meal,dishId){
+  if(!S.menu[day] || typeof S.menu[day]!=="object") S.menu[day]={};
+  S.menu[day][meal]=dishId||"";
+  save(); render();
+}
+function regenMenu(){
+  DAYS.forEach(day=>{
+    S.menu[day]=S.menu[day]&&typeof S.menu[day]==="object"?S.menu[day]:{};
+    MEALS.forEach(m=>{
+      const lista=dishesOfType(m);
+      S.menu[day][m]=lista.length?lista[Math.floor(Math.random()*lista.length)].id:"";
+    });
+  });
+  save(); render();
+}
 function saveEcon(){ S.rate=parseFloat($("ecRate").value)||S.rate; S.fixedPay=parseFloat($("ecFixed").value)||S.fixedPay; save(); closeModal(); render() }
 function addFixed(){ const n=$("ftName").value.trim(); if(!n)return; const freq=($("ftFreq")||{}).value||"daily"; S.fixedTasks.push({id:uid("f"),name:n,icon:$("ftIcon").value,freq}); ensureFixedShape(); save();closeModal();closeSheet();render() }
 function addExtra(){ const n=$("etName").value.trim(); const p=parseInt($("etPts").value,10); if(!n||!p)return; S.extraTasks.push({id:uid("e"),name:n,points:p,icon:$("etIcon").value}); save();closeModal();closeSheet();render() }
 function delFixed(id){ S.fixedTasks=S.fixedTasks.filter(t=>t.id!==id); save();render() }
 function delExtra(id){ S.extraTasks=S.extraTasks.filter(t=>t.id!==id); save();render() }
-function addDish(){ const n=$("dishName").value.trim(); if(!n)return; S.dishes.push(n); save();closeModal();closeSheet();render() }
+function addDish(){
+  const n=$("dishName").value.trim(); if(!n)return;
+  const tipo=($("dishType")||{}).value||"comida";
+  S.dishes.push({id:uid("d"), name:n, type:MEALS.includes(tipo)?tipo:"comida", tags:[]});
+  save();closeModal();closeSheet();render();
+}
+// Al borrar un plato hay que quitarlo también del menú: si no, los días que lo
+// tuvieran apuntarían a un id que ya no existe.
+function delDish(id){
+  const p=dishById(id); if(!p.id) return;
+  if(!confirm('¿Borrar "'+p.name+'" de la base de platos?')) return;
+  S.dishes=S.dishes.filter(x=>x.id!==id);
+  DAYS.forEach(d=>MEALS.forEach(m=>{ if(menuAt(d,m)===id) S.menu[d][m]=""; }));
+  save();render();
+}
 async function resetAll(){
   if(!confirm("Esto reiniciará TODOS los datos de tu familia (no afecta a tu cuenta). ¿Continuar?")) return;
   try{
@@ -744,16 +806,24 @@ function dValidate(){
 
 function dMenu(){
   return `<div class="card" style="margin-bottom:18px"><div class="row">
-    <div><h3 style="font-size:15px">Menú de la semana</h3><p class="dim" style="font-size:13px;margin-top:4px">Edita cada día o genera una semana desde tu base de platos.</p></div>
+    <div><h3 style="font-size:15px">Menú de la semana</h3><p class="dim" style="font-size:13px;margin-top:4px">Elige desayuno, comida y cena de cada día, o genera la semana entera desde tu base de platos.</p></div>
     <span class="spacer"></span><button class="btn sm" onclick="regenMenu()">🎲 Generar semana</button></div></div>
-  <div class="cols">
-    <div class="card"><h3 style="font-size:14px;margin-bottom:12px">Días</h3>
-      ${DAYS.map(d=>`<div class="row" style="margin-bottom:10px"><span class="chip" style="width:48px;justify-content:center">${d}</span>
-        <select onchange="setMenu('${d}',this.value)" style="flex:1">${S.dishes.map(dish=>`<option ${S.menu[d]===dish?"selected":""}>${esc(dish)}</option>`).join("")}</select></div>`).join("")}
-    </div>
-    <div class="card"><div class="row" style="margin-bottom:12px"><h3 style="font-size:14px">Base de platos</h3><span class="spacer"></span><button class="btn sm" onclick="modalAddDish()">+ Plato</button></div>
-      ${S.dishes.map(d=>`<div class="task-line" style="padding:8px 0"><span style="flex:1">${esc(d)}</span></div>`).join("")}
-    </div>
+  <div class="card" style="margin-bottom:18px;overflow-x:auto">
+    <table><thead><tr><th>Día</th>${MEALS.map(m=>`<th>${MEAL_LABEL[m]}</th>`).join("")}</tr></thead><tbody>
+    ${DAYS.map(d=>`<tr><td><b>${d}</b></td>${MEALS.map(m=>`<td>
+      <select onchange="setMenu('${d}','${m}',this.value)" style="min-width:150px">
+        <option value="">—</option>
+        ${dishesOfType(m).map(p=>`<option value="${esc(p.id)}" ${menuAt(d,m)===p.id?"selected":""}>${esc(p.name)}</option>`).join("")}
+      </select></td>`).join("")}</tr>`).join("")}
+    </tbody></table>
+  </div>
+  <div class="card"><div class="row" style="margin-bottom:12px"><h3 style="font-size:14px">Base de platos</h3><span class="spacer"></span><button class="btn sm" onclick="modalAddDish()">+ Plato</button></div>
+    ${MEALS.map(m=>{const lista=dishesOfType(m);
+      return `<div class="sect-title" style="margin-top:10px">${MEAL_LABEL[m]}</div>
+      ${lista.length?lista.map(p=>`<div class="task-line" style="padding:8px 0"><span style="flex:1">${esc(p.name)}</span>
+        <button class="btn ghost sm" style="color:var(--red)" onclick="delDish('${esc(p.id)}')">✕</button></div>`).join("")
+        :'<div class="dim" style="font-size:13px;padding:6px 0">Sin platos todavía.</div>'}`;
+    }).join("")}
   </div>`;
 }
 
@@ -819,6 +889,8 @@ function modalAddExtra(){ openModal(`<h3 style="margin-bottom:16px">Nueva tarea 
   <button class="btn primary w" onclick="addExtra()">Añadir</button>`); }
 function modalAddDish(){ openModal(`<h3 style="margin-bottom:16px">Nuevo plato</h3>
   <div class="field"><label>Nombre del plato</label><input id="dishName" placeholder="Ej. Curry de garbanzos"></div>
+  <div class="field"><label>¿Para qué comida?</label>
+    <select id="dishType">${MEALS.map(m=>`<option value="${m}">${MEAL_LABEL[m]}</option>`).join("")}</select></div>
   <button class="btn primary w" onclick="addDish()">Añadir a la base</button>`); }
 function openModal(h){ $("modal").innerHTML=h; $("modalBg").classList.add("open"); }
 function closeModal(){ $("modalBg").classList.remove("open"); }
@@ -1076,11 +1148,17 @@ function mAchieve(){
 }
 
 function mMenu(){
-  const idx=(new Date().getDay()+6)%7; // 0=Lun
-  const today=DAYS[idx]; const dish=S.menu[today];
-  return `${dish?`<div class="hero"><div class="label">Hoy se cocina</div><div style="font-size:24px;font-weight:600;margin-top:6px">${esc(dish)}</div></div>`:""}
+  const hoy=DAYS[todayIdx()];
+  const deHoy=MEALS.map(m=>({meal:m, nombre:dishNameAt(hoy,m)})).filter(x=>x.nombre);
+  return `${deHoy.length?`<div class="hero"><div class="label">Hoy se come</div>
+      ${deHoy.map(x=>`<div class="row" style="margin-top:8px"><span class="dim" style="font-size:12px;width:76px">${MEAL_LABEL[x.meal]}</span>
+        <span style="font-size:17px;font-weight:600">${esc(x.nombre)}</span></div>`).join("")}
+    </div>`:`<div class="empty">Aún no hay menú para hoy.</div>`}
   <div class="mcard"><b style="font-size:14px">Toda la semana</b><div style="margin-top:8px">
-    ${DAYS.map(d=>`<div class="day"><span class="dn">${d}</span><span>${esc(S.menu[d]||"—")}</span></div>`).join("")}</div></div>`;
+    ${DAYS.map(d=>{
+      const platos=MEALS.map(m=>dishNameAt(d,m)).filter(Boolean);
+      return `<div class="day"><span class="dn">${d}</span><span style="font-size:13px">${platos.length?esc(platos.join(" · ")):"—"}</span></div>`;
+    }).join("")}</div></div>`;
 }
 
 function mRewards(){
