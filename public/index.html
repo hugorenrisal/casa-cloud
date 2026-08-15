@@ -66,6 +66,9 @@ input:focus,select:focus{outline:none;border-color:var(--accent);background:#fff
 .num{font-family:var(--num);font-variant-numeric:tabular-nums;font-weight:600}
 .dim{color:var(--dim)} .faint{color:var(--faint)}
 .screen{animation:rise .4s cubic-bezier(.2,.8,.2,1)}
+/* Repintado por sincronización de fondo: nada se vuelve a animar, para que la
+   pantalla no parezca refrescarse sola cada pocos segundos. */
+.screen.quiet,.screen.quiet *{animation:none!important}
 @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 @keyframes pop{0%{transform:scale(.8);opacity:0}60%{transform:scale(1.05)}100%{transform:scale(1);opacity:1}}
 
@@ -257,61 +260,15 @@ const fmt=n=>(Math.round(n*100)/100).toFixed(2);
 const LOAD={normal:1,reducida:.6,minima:.3};
 const LOAD_LABEL={normal:"Normal",reducida:"Reducida",minima:"Mínima"};
 const DAYS=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
-const monthKey=(d=new Date())=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
-const monthName=k=>{const[y,m]=k.split("-");return ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"][+m-1]+" "+y};
-// Semana ISO "YYYY-Www" a partir de la fecha real (las fijas se evalúan por semana).
-function weekKey(d=new Date()){
-  const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
-  const day=(t.getUTCDay()+6)%7; t.setUTCDate(t.getUTCDate()-day+3);
-  const firstThu=new Date(Date.UTC(t.getUTCFullYear(),0,4));
-  const wk=1+Math.round(((t-firstThu)/86400000-3+((firstThu.getUTCDay()+6)%7))/7);
-  return t.getUTCFullYear()+"-W"+String(wk).padStart(2,"0");
-}
+const monthName=k=>{const[y,m]=String(k||"").split("-");return ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"][+m-1]+" "+y};
+// Las claves de semana y mes las calcula el SERVIDOR (routes/state.js) y llegan
+// en S.currentWeek / S.currentMonth. El cliente no las genera nunca.
 const todayIdx=()=>(new Date().getDay()+6)%7; // Lun=0 ... Dom=6
 const DAYLBL=["L","M","X","J","V","S","D"];
 const isDaily=t=>t.freq==="daily";
 
-function seed(){
-  return {
-    view:"desk", profile:"parent", deskTab:"home", mobTab:"home",
-    currentMonth: monthKey(), currentWeek: weekKey(),
-    rate:0.05, fixedPay:8,
-    members:[
-      {id:"ana",name:"Ana",role:"child",color:"#e0588f",load:"normal"},
-      {id:"leo",name:"Leo",role:"child",color:"#2f9fd0",load:"reducida"},
-      {id:"mia",name:"Mía",role:"child",color:"#2fae73",load:"normal"},
-    ],
-    // Tareas FIJAS: mismas para todos. Cada hijo tiene su propia instancia/semana.
-    fixedTasks:[
-      {id:"f1",name:"Hacer la cama",icon:"🛏️",freq:"daily"},
-      {id:"f2",name:"Recoger tu plato",icon:"🍽️",freq:"daily"},
-      {id:"f3",name:"Preparar la mochila",icon:"🎒",freq:"daily"},
-      {id:"f4",name:"Poner una lavadora",icon:"🧺",freq:"weekly"},
-    ],
-    // Tareas ADICIONALES: se reparten por peso; dan dinero extra.
-    extraTasks:[
-      {id:"e1",name:"Limpiar el baño",points:40,icon:"🛁"},
-      {id:"e2",name:"Aspirar el salón",points:25,icon:"🧹"},
-      {id:"e3",name:"Poner la lavadora",points:20,icon:"🧺"},
-      {id:"e4",name:"Sacar la basura",points:10,icon:"🗑️"},
-      {id:"e5",name:"Pasear al perro",points:15,icon:"🐕"},
-    ],
-    // Fijas (seguimiento SEMANAL): fixedState[childId][taskId] = {days:[7 bool]}(diaria) | {status}(semanal)
-    fixedState:{}, extras:[], generated:false,
-    monthPoints:{ana:0,leo:0,mia:0},
-    streak:{ana:4,leo:2,mia:6},
-    history:{},
-    dishes:["Pasta con tomate","Pollo al horno","Lentejas","Pescado y verdura","Pizza casera","Hamburguesas","Arroz al horno","Tortilla francesa","Ensalada César","Macarrones","Sopa y croquetas","Tacos"],
-    menu:{Lun:"Pasta con tomate",Mar:"Pollo al horno",Mié:"Lentejas",Jue:"Pescado y verdura",Vie:"Pizza casera",Sáb:"Hamburguesas",Dom:"Arroz al horno"},
-    rewards:[
-      {id:"r1",title:"1 h más de pantalla",cost:60,type:"Tiempo"},
-      {id:"r2",title:"Elegir la peli del finde",cost:40,type:"Privilegio"},
-      {id:"r3",title:"Noche sin tareas",cost:120,type:"Privilegio"},
-    ],
-    listings:[], offers:[], marketLog:[], // mercado de tareas
-  };
-}
-
+// La semilla vive SOLO en el servidor (services/familyService.js):
+// tener una copia aqui significaba dos verdades que podian divergir.
 let S = null; // se carga del servidor en bootstrap()
 function ensureShape(){
   if(!S) return; // el estado aún no ha llegado del servidor
@@ -327,21 +284,15 @@ function ensureShape(){
   if(Array.isArray(S.extras)) S.extras.forEach(x=>{ if(x.listed===undefined) x.listed=false; });
   if(Array.isArray(S.fixedTasks)) S.fixedTasks.forEach(t=>{ if(!t.freq) t.freq="daily"; });
   if(!S.fixedState || typeof S.fixedState!=="object") S.fixedState={};
-  if(!S.currentWeek) S.currentWeek=weekKey();
   delete S.swaps; delete S.fixedInstances;
 }
 
-// ---- Reseteo mensual ligado a la fecha real -----------------------------
-function rollover(){
-  const cur=monthKey();
-  if(S.currentMonth===cur) return;
-  S.history=S.history||{};
-  S.history[S.currentMonth]={points:{...S.monthPoints}};
-  S.currentMonth=cur;
-  S.monthPoints=Object.fromEntries(S.members.filter(m=>m.role==="child").map(m=>[m.id,0]));
-  S.fixedState={}; S.extras=[]; S.generated=false; S.listings=[]; S.offers=[]; S.marketLog=[];
-  save();
-}
+// ---- Reinicios de ciclo --------------------------------------------------
+// El reinicio semanal y el mensual los decide EL SERVIDOR con su propio reloj
+// (ver aplicarCiclos en routes/state.js). Antes los disparaba el reloj del
+// dispositivo: bastaba con que un móvil tuviera la fecha mal puesta para
+// reiniciar la semana o el mes de toda la familia. El cliente solo lee
+// S.currentWeek / S.currentMonth; nunca los cambia.
 const save=()=>Store.write(S);
 const $=id=>document.getElementById(id);
 const children=()=>S.members.filter(m=>m.role==="child");
@@ -351,9 +302,13 @@ const member=id=>S.members.find(m=>m.id===id);
 //  MOTOR
 // =========================================================================
 function generateMonth(){
+  // Repartir de nuevo borra el progreso y las validaciones del reparto anterior.
+  if(S.generated && !confirm("Volver a repartir borrará el reparto actual, lo que tus hijos ya hayan marcado y los anuncios del mercado. ¿Continuar?")) return;
   // Fijas: una instancia por hijo (mismas tareas para todos)
-  S.currentWeek=weekKey();
   initFixedWeek();
+  // El mercado se refiere a asignaciones que van a desaparecer: se cierra entero.
+  S.listings.forEach(l=>{ if(l.status==="open") l.status="cancelled"; });
+  S.offers.forEach(o=>{ if(o.status==="pending") o.status="rejected"; });
   // Adicionales: repartir por peso según disponibilidad
   const kids=children();
   const sumF=kids.reduce((s,c)=>s+LOAD[c.load],0)||1;
@@ -379,23 +334,24 @@ function initFixedWeek(){
   });
 }
 // Asegura que fixedState tiene forma correcta (nuevos hijos/tareas/cambios de frecuencia)
+// Rellena las casillas que falten. Devuelve si ha cambiado algo, para poder
+// guardarlo: una mutación local que no se guarda hace que el sondeo vea siempre
+// diferencia con el servidor y repinte la pantalla cada 4 segundos.
+// El servidor ya entrega el estado con forma completa; esto es red de seguridad.
 function ensureFixedShape(){
-  if(!S.fixedState) S.fixedState={};
+  let cambio=false;
+  if(!S.fixedState){ S.fixedState={}; cambio=true; }
   children().forEach(c=>{
-    if(!S.fixedState[c.id]) S.fixedState[c.id]={};
+    if(!S.fixedState[c.id]){ S.fixedState[c.id]={}; cambio=true; }
     S.fixedTasks.forEach(t=>{
       const cur=S.fixedState[c.id][t.id];
-      if(!cur) S.fixedState[c.id][t.id]= isDaily(t)?{days:[false,false,false,false,false,false,false]}:{status:"pending"};
-      else if(isDaily(t)&&!cur.days) S.fixedState[c.id][t.id]={days:[false,false,false,false,false,false,false]};
-      else if(!isDaily(t)&&cur.days) S.fixedState[c.id][t.id]={status:"pending"};
+      if(!cur || isDaily(t)!==Array.isArray(cur.days)){
+        S.fixedState[c.id][t.id]= isDaily(t)?{days:[false,false,false,false,false,false,false]}:{status:"pending"};
+        cambio=true;
+      }
     });
   });
-}
-// Reinicio semanal automático de las fijas
-function ensureWeek(){
-  const wk=weekKey();
-  if(S.currentWeek!==wk){ S.currentWeek=wk; if(S.generated) initFixedWeek(); save(); }
-  else ensureFixedShape();
+  return cambio;
 }
 function fixedApprovedUnits(childId){
   let n=0;
@@ -508,10 +464,23 @@ function acceptOffer(offerId){
   S.marketLog.push({kind:"trade", taskId:l.taskId, giveTaskId:o.offeredTaskId, from:l.sellerId, to:o.bidderId, points:o.pointsAsked, at:Date.now()});
   save(); render();
 }
-function setView(v){ S.view=v; save(); render() }
-function setProfile(p){ S.profile=p; S.deskTab="home"; S.mobTab="home"; save(); closeSheet(); render() }
-function setDeskTab(t){ S.deskTab=t; save(); render() }
-function setMobTab(t){ S.mobTab=t; save(); render() }
+// La vista, el perfil y la pestaña abierta son de ESTE dispositivo: no se
+// mandan al servidor. Si se guardaran, cambiar de pestaña escribiría en el
+// estado compartido y le saltaría la sección abierta a los demás.
+const TAB_KEY="casa_tabs_v1";
+function recordarPestanas(){
+  try{ localStorage.setItem(TAB_KEY,JSON.stringify({deskTab:S.deskTab,mobTab:S.mobTab})); }catch(e){}
+}
+function restaurarPestanas(){
+  try{
+    const t=JSON.parse(localStorage.getItem(TAB_KEY)||"null");
+    if(t){ if(t.deskTab) S.deskTab=t.deskTab; if(t.mobTab) S.mobTab=t.mobTab; }
+  }catch(e){}
+}
+function setView(v){ S.view=v; render() }
+function setProfile(p){ S.profile=p; S.deskTab="home"; S.mobTab="home"; recordarPestanas(); closeSheet(); render() }
+function setDeskTab(t){ S.deskTab=t; recordarPestanas(); render() }
+function setMobTab(t){ S.mobTab=t; recordarPestanas(); render() }
 function setLoad(id,v){ member(id).load=v; save(); render() }
 function setMenu(day,dish){ S.menu[day]=dish; save(); render() }
 function regenMenu(){ const d=[...S.dishes]; DAYS.forEach(day=>{ S.menu[day]=d[Math.floor(Math.random()*d.length)] }); save(); render() }
@@ -558,7 +527,7 @@ function renderDesk(){
     </aside>
     <main class="deskmain">
       <h2>${titles[tab]}</h2><div class="crumb">Panel de administración familiar</div>
-      <div class="screen">${body}</div>
+      <div class="screen${_quiet?" quiet":""}">${body}</div>
     </main>
   </div>`;
 }
@@ -867,7 +836,7 @@ function renderMob(){
   $("mob").innerHTML=`<div class="phone">
     <div class="head">${av}<div><h1>Hola, ${me.name}</h1><div class="sub">Nivel ${lv.level} · ${lv.points} pts este mes</div></div>
       <button class="icon-btn" onclick="mobSwitchUser()">${svg("users")}</button></div>
-    <div class="screen">${body}</div>
+    <div class="screen${_quiet?" quiet":""}">${body}</div>
   </div>
   <div class="nav">${MOB_NAV.map(([t,l,ic])=>`<button class="${S.mobTab===t?"on":""}" onclick="setMobTab('${t}')">${svg(ic)}<span>${l}</span></button>`).join("")}</div>`;
 }
@@ -1147,9 +1116,13 @@ function renderModebar(){
     <span id="connDot" title="Conectado" style="width:9px;height:9px;border-radius:50%;background:var(--green);display:inline-block;margin:0 4px 0 8px"></span>
     <button class="btn ghost sm" style="padding:5px 10px" onclick="Auth.doLogout()">Cerrar sesión</button>`;
 }
-function render(){
-  rollover();
-  ensureWeek();
+// quiet: repintado provocado por el sondeo, no por el usuario. Se salta la
+// animación de entrada para que la pantalla no "parpadee" sola cada pocos
+// segundos cuando otro dispositivo cambia algo.
+let _quiet=false;
+function render(opts){
+  _quiet=!!(opts&&opts.quiet);
+  if(ensureFixedShape()) save(); // si faltaba forma, se guarda (si no, bucle)
   renderModebar();
   if(S.view==="desk"){
     $("desk").style.display="block"; $("mob").style.display="none";
@@ -1234,6 +1207,7 @@ async function launchApp(){
     S = await api("/api/state");
     showConn(true);
     ensureShape();
+    restaurarPestanas();
     // Vista deriva del rol en la familia (padre → desk, hijo → mob)
     S.view = (ME.roleInFamily === "parent") ? "desk" : "mob";
     S.profile = (ME.roleInFamily === "parent") ? "parent" : ME.id;
@@ -1264,14 +1238,20 @@ function startPolling(){
   clearInterval(_poll);
   _poll=setInterval(async()=>{
     if(Date.now()-_lastSent<1500) return;
+    // no repintar por debajo de alguien que está rellenando un campo
+    const foco=document.activeElement;
+    if(foco && /^(INPUT|SELECT|TEXTAREA)$/.test(foco.tagName)) return;
+    // ni con una hoja o un diálogo abiertos
+    if($("sheet").classList.contains("open") || $("modalBg").classList.contains("open")) return;
     try{
       const remote = await api("/api/state");
       showConn(true);
-      const localView=S.view, localProfile=S.profile;
-      const remoteStr=JSON.stringify(stripRole(remote));
-      if(remoteStr!==JSON.stringify(stripRole(S))){
-        S=remote; S.view=localView; S.profile=localProfile;
-        ensureShape(); render();
+      // preserva lo que es de este dispositivo; adopta el resto si cambió
+      const local={view:S.view,profile:S.profile,deskTab:S.deskTab,mobTab:S.mobTab};
+      if(JSON.stringify(stripLocal(remote))!==JSON.stringify(stripLocal(S))){
+        S=remote; Object.assign(S,local);
+        ensureShape();
+        render({quiet:true}); // sincronización de fondo: sin animación de entrada
       }
     }catch(e){
       if(e.status===401){ clearInterval(_poll); ME=null; Auth.show("login"); return; }
@@ -1279,7 +1259,10 @@ function startPolling(){
     }
   },4000);
 }
-function stripRole(o){ const c={...o}; delete c.view; delete c.profile; return c; }
+// Campos que son de ESTE dispositivo y por tanto no cuentan como "ha cambiado
+// algo en la familia". Sin esto, cambiar de pestaña en un móvil repintaba la
+// pantalla de todos los demás y les movía la sección abierta.
+function stripLocal(o){ const c={...o}; delete c.view; delete c.profile; delete c.deskTab; delete c.mobTab; return c; }
 
 // ============== UI DE AUTENTICACIÓN ==============
 const Auth = {

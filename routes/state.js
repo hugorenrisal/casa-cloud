@@ -6,7 +6,8 @@ const express = require("express");
 const { query } = require("../db");
 const { requireAuth, requireEmailVerified } = require("../middleware/requireAuth");
 const { requireFamily, requireParent } = require("../middleware/requireFamily");
-const { emptyFamilyState, syncMembers, listMembers } = require("../services/familyService");
+const { emptyFamilyState, syncMembers, listMembers, ensureFixedShape } =
+  require("../services/familyService");
 
 const router = express.Router();
 
@@ -14,6 +15,69 @@ function isValidState(s) {
   return s && typeof s === "object"
     && Array.isArray(s.fixedTasks)
     && Array.isArray(s.extraTasks);
+}
+
+// ---------------------------------------------------------------------------
+//  Ciclos de semana y mes.
+//
+//  Los decide el SERVIDOR, en el huso de la familia. Antes los disparaba el
+//  reloj de cada dispositivo: bastaba con que un móvil tuviera la fecha mal
+//  puesta para reiniciar la semana o el mes de toda la familia.
+// ---------------------------------------------------------------------------
+const TZ = process.env.TZ_FAMILIA || "Europe/Madrid";
+
+function fechaLocal(d = new Date()) {
+  const [y, m, dia] = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(d).split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, dia));
+}
+function claveMes(d = fechaLocal()) {
+  return d.getUTCFullYear() + "-" + String(d.getUTCMonth() + 1).padStart(2, "0");
+}
+// Semana ISO-8601 "YYYY-Www" (empieza en lunes)
+function claveSemana(d = fechaLocal()) {
+  const t = new Date(d.getTime());
+  const dia = (t.getUTCDay() + 6) % 7;
+  t.setUTCDate(t.getUTCDate() - dia + 3);
+  const primerJue = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));
+  const sem = 1 + Math.round(((t - primerJue) / 86400000 - 3 + ((primerJue.getUTCDay() + 6) % 7)) / 7);
+  return t.getUTCFullYear() + "-W" + String(sem).padStart(2, "0");
+}
+
+function iniciarSemanaFijas(state) {
+  state.fixedState = {};
+  (state.members || []).filter((m) => m.role === "child").forEach((c) => {
+    state.fixedState[c.id] = {};
+    (state.fixedTasks || []).forEach((t) => {
+      state.fixedState[c.id][t.id] = t.freq === "weekly"
+        ? { status: "pending" }
+        : { days: [false, false, false, false, false, false, false] };
+    });
+  });
+}
+
+// Aplica los reinicios que toquen. Devuelve true si ha cambiado algo.
+function aplicarCiclos(state) {
+  const mes = claveMes(), semana = claveSemana();
+  let cambio = false;
+
+  if (state.currentMonth !== mes) {
+    state.history = state.history || {};
+    state.history[state.currentMonth] = { points: { ...(state.monthPoints || {}) } };
+    state.currentMonth = mes;
+    state.monthPoints = {};
+    state.fixedState = {}; state.extras = []; state.generated = false;
+    state.listings = []; state.offers = []; state.marketLog = [];
+    state.currentWeek = semana;
+    cambio = true;
+  } else if (state.currentWeek !== semana) {
+    state.currentWeek = semana;
+    if (state.generated) iniciarSemanaFijas(state);
+    cambio = true;
+  }
+
+  return ensureFixedShape(state) || cambio;
 }
 
 // GET /api/state — devuelve estado de la familia del usuario, con members sincronizados
@@ -30,6 +94,17 @@ router.get("/state", requireAuth, requireEmailVerified, requireFamily, async (re
     }
     const members = await listMembers(req.user.familyId);
     state = syncMembers(state, members);
+
+    // Reinicios de ciclo y relleno de casillas: si cambió algo, se persiste.
+    // Sin esto, el cliente rellenaría en local sin guardar y el sondeo vería
+    // diferencia en cada vuelta (la pantalla se repintaba cada 4 segundos).
+    if (aplicarCiclos(state)) {
+      await query(
+        `INSERT INTO family_state (family_id, data, updated_at) VALUES ($1, $2::jsonb, now())
+         ON CONFLICT (family_id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()`,
+        [req.user.familyId, JSON.stringify(state)]
+      );
+    }
     res.json(state);
   } catch (e) {
     console.error("[state/get]", e);
@@ -55,9 +130,18 @@ router.put("/state", requireAuth, requireEmailVerified, requireFamily, async (re
       PROTECTED.forEach(k => { if (k in prev) incoming[k] = prev[k]; });
     }
 
+    // Los ciclos los marca el reloj del servidor, no el del dispositivo. Si el
+    // cliente escribe con una semana o un mes que ya no son los actuales, se
+    // rechaza: su sondeo traerá el estado bueno en unos segundos. Así un móvil
+    // con la fecha mal puesta no puede reiniciar (ni resucitar) el ciclo.
+    if (incoming.currentMonth !== claveMes() || incoming.currentWeek !== claveSemana()) {
+      return res.status(409).json({ error: "ciclo_desfasado" });
+    }
+
     // Siempre forzamos members desde la BD (fuente de verdad)
     const members = await listMembers(req.user.familyId);
     const synced = syncMembers(incoming, members);
+    ensureFixedShape(synced); // se guarda ya con forma; el GET no reescribirá
 
     await query(
       `INSERT INTO family_state (family_id, data, updated_at)
@@ -80,6 +164,9 @@ router.post("/reset", requireAuth, requireEmailVerified, requireFamily, requireP
       const fresh = emptyFamilyState();
       const members = await listMembers(req.user.familyId);
       const seeded = syncMembers(fresh, members);
+      seeded.currentMonth = claveMes();
+      seeded.currentWeek = claveSemana();
+      ensureFixedShape(seeded);
       await query(
         `UPDATE family_state SET data=$1::jsonb, updated_at=now() WHERE family_id=$2`,
         [JSON.stringify(seeded), req.user.familyId]
@@ -118,6 +205,10 @@ router.post("/restore", requireAuth, requireEmailVerified, requireFamily, requir
       if (!isValidState(req.body)) return res.status(400).json({ error: "copia_invalida" });
       const members = await listMembers(req.user.familyId);
       const synced = syncMembers(req.body, members);
+      // La copia puede ser de otra semana: se sella con el ciclo actual.
+      synced.currentMonth = claveMes();
+      synced.currentWeek = claveSemana();
+      ensureFixedShape(synced);
       await query(
         `UPDATE family_state SET data=$1::jsonb, updated_at=now() WHERE family_id=$2`,
         [JSON.stringify(synced), req.user.familyId]

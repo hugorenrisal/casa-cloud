@@ -55,6 +55,52 @@ function emptyFamilyState() {
   };
 }
 
+// ---------------------------------------------------------------------------
+//  Relleno de las casillas de tareas fijas.
+//
+//  Lo hace el SERVIDOR para que el estado que entrega venga ya completo.
+//  Antes lo rellenaba solo el cliente y no lo guardaba: el sondeo veía
+//  diferencia contra el servidor en cada vuelta, adoptaba el remoto, volvía a
+//  rellenar... y la pantalla se repintaba cada 4 segundos sin parar.
+//
+//  Devuelve true si ha cambiado algo, para poder guardarlo.
+// ---------------------------------------------------------------------------
+function ensureFixedShape(state) {
+  let cambio = false;
+  if (!state.fixedState || typeof state.fixedState !== "object") {
+    state.fixedState = {}; cambio = true;
+  }
+  const hijos = (state.members || []).filter((m) => m.role === "child");
+  const tareas = state.fixedTasks || [];
+
+  hijos.forEach((c) => {
+    if (!state.fixedState[c.id]) { state.fixedState[c.id] = {}; cambio = true; }
+    tareas.forEach((t) => {
+      const cur = state.fixedState[c.id][t.id];
+      const quiereDias = t.freq !== "weekly";
+      if (!cur || quiereDias !== Array.isArray(cur.days)) {
+        state.fixedState[c.id][t.id] = quiereDias
+          ? { days: [false, false, false, false, false, false, false] }
+          : { status: "pending" };
+        cambio = true;
+      }
+    });
+    // Tareas que ya no existen en el catálogo
+    Object.keys(state.fixedState[c.id]).forEach((taskId) => {
+      if (!tareas.some((t) => t.id === taskId)) {
+        delete state.fixedState[c.id][taskId]; cambio = true;
+      }
+    });
+  });
+
+  // Casillas de miembros que ya no están en la familia
+  Object.keys(state.fixedState).forEach((id) => {
+    if (!hijos.some((c) => c.id === id)) { delete state.fixedState[id]; cambio = true; }
+  });
+
+  return cambio;
+}
+
 // Sincroniza el array S.members con los miembros reales de la BD.
 // Devuelve el state con members "frescos" (sin tocar fixedState/extras).
 function syncMembers(state, dbMembers) {
@@ -147,6 +193,7 @@ async function removeMember({ familyId, userId, byUserId }) {
 
 module.exports = {
   emptyFamilyState,
+  ensureFixedShape,
   syncMembers,
   createFamilyForUser,
   listMembers,
