@@ -17,47 +17,9 @@
 // ============================================================================
 const test = require("node:test");
 const assert = require("node:assert");
-const fs = require("node:fs");
-const path = require("node:path");
-const vm = require("node:vm");
+const { cargarCliente } = require("./_cliente");
 
-function cargarCliente() {
-  const html = fs.readFileSync(
-    path.join(__dirname, "..", "public", "index.html"), "utf8");
-  const partes = html.split("<script>");
-  const codigo = partes[partes.length - 1].split("</script>")[0];
-
-  const nodoFalso = {
-    style: {}, classList: { add() {}, remove() {}, contains: () => false },
-    appendChild() {}, addEventListener() {}, innerHTML: "", value: "",
-  };
-  const ctx = {
-    console,
-    localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
-    location: { pathname: "/", hash: "", href: "", replace() {} },
-    navigator: {},
-    setTimeout, clearTimeout, setInterval, clearInterval,
-    fetch: async () => ({ ok: true, json: async () => ({}) }),
-    document: {
-      getElementById: () => nodoFalso,
-      querySelector: () => nodoFalso,
-      querySelectorAll: () => [],
-      createElement: () => nodoFalso,
-      addEventListener() {},
-      head: nodoFalso, body: nodoFalso, readyState: "complete",
-    },
-  };
-  ctx.window = ctx;
-  vm.createContext(ctx);
-  // bootstrap() falla al no haber servidor; da igual, solo queremos las funciones.
-  try { vm.runInContext(codigo, ctx); } catch (e) { /* esperado */ }
-  return ctx;
-}
-
-const ctx = cargarCliente();
-const ejec = (codigo) => vm.runInContext(codigo, ctx);
-const ponerEstado = (o) => ejec("S = " + JSON.stringify(o) + ";");
-const leerEstado = () => JSON.parse(ejec("JSON.stringify(S)"));
+const { ejec, ponerEstado, leerEstado } = cargarCliente();
 
 // Comprobación del propio arnés: si esto falla, las demás pruebas mienten.
 test("el arnés alcanza de verdad el estado del cliente", () => {
