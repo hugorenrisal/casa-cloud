@@ -476,6 +476,10 @@ function setFixedFreq(taskId,freq){ const t=fixedTask(taskId); if(t){ t.freq=fre
 function setExtraStatus(id,st){ const x=S.extras.find(e=>e.id===id); if(x){x.status=st;save();render()} }
 // ===================== MERCADO DE TAREAS =====================
 function listingOf(assignmentId){ return S.listings.find(l=>l.assignmentId===assignmentId && l.status==="open"); }
+// ¿Ya he pedido yo este anuncio y estoy esperando respuesta?
+function yaPedida(listingId){
+  return (S.offers||[]).some(o=>o.listingId===listingId && o.bidderId===S.profile && o.status==="pending");
+}
 function offersForListing(listingId){ return S.offers.filter(o=>o.listingId===listingId && o.status==="pending"); }
 
 // Publicar una tarea adicional propia en el mercado.
@@ -498,14 +502,20 @@ function cancelListing(listingId){
   save(); render();
 }
 // "Me la quedo": cierre directo por los puntos ofrecidos.
+// "Me la quedo" ya NO cierra el trato de golpe: crea una solicitud que el
+// vendedor tiene que aceptar, igual que el trueque. Antes un hermano podía
+// quedarse la tarea de otro sin que este se enterara hasta después, y el
+// vendedor no podía echarse atrás aunque hubiera puesto mal el precio.
 function takeListing(listingId, bidderId){
   const l=S.listings.find(x=>x.id===listingId); if(!l||l.status!=="open"||bidderId===l.sellerId)return;
   const x=S.extras.find(e=>e.id===l.assignmentId); if(!x||x.status!=="pending")return;
-  x.memberId=bidderId; x.listed=false;
-  if(l.pointsOffered>0) x.bounty={points:l.pointsOffered, from:l.sellerId, to:bidderId};
-  l.status="closed";
-  S.offers.filter(o=>o.listingId===listingId&&o.status==="pending").forEach(o=>o.status="rejected");
-  S.marketLog.push({kind:"take", taskId:l.taskId, from:l.sellerId, to:bidderId, points:l.pointsOffered, at:Date.now()});
+  // Si ya había pedido esta misma tarea, no se duplica
+  if(S.offers.some(o=>o.listingId===listingId&&o.bidderId===bidderId&&o.status==="pending")){
+    alert("Ya has pedido esta tarea. Espera a que te responda."); closeSheet(); return;
+  }
+  S.offers.push({id:uid("o"), listingId, bidderId, kind:"take",
+    offeredAssignmentId:"", offeredTaskId:"", pointsAsked:0,
+    status:"pending", createdAt:Date.now()});
   save(); closeSheet(); render();
 }
 // Ofrecer un trueque: una de mis tareas a cambio (+ puntos opcionales que pido).
@@ -521,18 +531,36 @@ function submitTradeOffer(listingId, bidderId){
 }
 function rejectOffer(offerId){ const o=S.offers.find(x=>x.id===offerId); if(o&&o.status==="pending"){o.status="rejected";save();render()} }
 // El vendedor acepta un trueque: se intercambian las tareas (+ compensación en puntos).
+// El vendedor acepta. Vale para los dos tipos de solicitud:
+//   take  -> el otro se queda la tarea; si el vendedor ofrecía puntos, se los paga
+//   trade -> se intercambian las dos tareas (+ compensación opcional)
 function acceptOffer(offerId){
   const o=S.offers.find(x=>x.id===offerId); if(!o||o.status!=="pending")return;
   const l=S.listings.find(x=>x.id===o.listingId); if(!l||l.status!=="open")return;
   const sellerTask=S.extras.find(e=>e.id===l.assignmentId);
-  const bidderTask=S.extras.find(e=>e.id===o.offeredAssignmentId);
-  if(!sellerTask||!bidderTask||sellerTask.status!=="pending"||bidderTask.status!=="pending"){ alert("Alguna tarea ya no está disponible."); o.status="rejected"; save(); render(); return; }
-  sellerTask.memberId=o.bidderId; sellerTask.listed=false;
-  bidderTask.memberId=l.sellerId;
-  if(o.pointsAsked>0) sellerTask.bounty={points:o.pointsAsked, from:l.sellerId, to:o.bidderId};
+  if(!sellerTask||sellerTask.status!=="pending"){
+    alert("Esa tarea ya no está disponible."); o.status="rejected"; save(); render(); return;
+  }
+
+  if(o.kind==="take"){
+    sellerTask.memberId=o.bidderId; sellerTask.listed=false;
+    if(l.pointsOffered>0) sellerTask.bounty={points:l.pointsOffered, from:l.sellerId, to:o.bidderId};
+    S.marketLog.push({kind:"take", taskId:l.taskId, from:l.sellerId, to:o.bidderId, points:l.pointsOffered, at:Date.now()});
+  }else{
+    const bidderTask=S.extras.find(e=>e.id===o.offeredAssignmentId);
+    if(!bidderTask||bidderTask.status!=="pending"){
+      alert("La tarea que te ofrecían ya no está disponible."); o.status="rejected"; save(); render(); return;
+    }
+    sellerTask.memberId=o.bidderId; sellerTask.listed=false;
+    bidderTask.memberId=l.sellerId;
+    if(o.pointsAsked>0) sellerTask.bounty={points:o.pointsAsked, from:l.sellerId, to:o.bidderId};
+    S.marketLog.push({kind:"trade", taskId:l.taskId, giveTaskId:o.offeredTaskId, from:l.sellerId, to:o.bidderId, points:o.pointsAsked, at:Date.now()});
+  }
+
+  o.status="accepted";
   l.status="closed";
+  // El resto de solicitudes sobre ese anuncio se caen
   S.offers.filter(x=>x.listingId===l.id&&x.status==="pending").forEach(x=>x.status="rejected");
-  S.marketLog.push({kind:"trade", taskId:l.taskId, giveTaskId:o.offeredTaskId, from:l.sellerId, to:o.bidderId, points:o.pointsAsked, at:Date.now()});
   save(); render();
 }
 // La vista, el perfil y la pestaña abierta son de ESTE dispositivo: no se
@@ -1159,19 +1187,26 @@ function mMarket(){
 
   let html=`<p class="dim" style="font-size:13px;margin:0 4px 16px">Vende una tarea ofreciendo puntos a quien la haga, o cámbiala por otra. Os organizáis entre vosotros.</p>`;
 
-  // --- Ofertas de trueque recibidas ---
+  // --- Solicitudes recibidas (te piden una tarea o te ofrecen un cambio) ---
   if(incoming.length){
-    html+=`<div class="sect-title">📥 Te han ofrecido un trueque</div>`;
+    html+=`<div class="sect-title">📥 Te han pedido algo (${incoming.length})</div>`;
     incoming.forEach(o=>{
       const l=S.listings.find(x=>x.id===o.listingId);
-      html+=`<div class="mcard" style="border-color:var(--violet)">
-        <div class="row"><span class="pill p-extra">trueque</span><span class="spacer"></span><span class="dim" style="font-size:12px">de ${esc(member(o.bidderId).name)}</span></div>
-        <div style="margin:10px 0;font-size:14px;font-weight:700">${esc(member(o.bidderId).name)} hará tu <b>${esc(t(l.taskId).icon)} ${esc(t(l.taskId).name)}</b></div>
-        <div class="row" style="font-size:13px"><span class="dim">A cambio tú harás:</span><span class="spacer"></span><span>${esc(t(o.offeredTaskId).icon)} ${esc(t(o.offeredTaskId).name)} <span class="pts">${t(o.offeredTaskId).points}</span></span></div>
-        ${o.pointsAsked>0?`<div class="row" style="font-size:13px;margin-top:6px"><span class="dim">Te pide además:</span><span class="spacer"></span><span class="pts">${o.pointsAsked} pts</span></div>`:""}
+      const quien=esc(member(o.bidderId).name);
+      const esTake=o.kind==="take";
+      html+=`<div class="mcard" style="border-color:${esTake?"var(--accent)":"var(--violet)"}">
+        <div class="row"><span class="pill ${esTake?"p-wait":"p-extra"}">${esTake?"te la pide":"trueque"}</span>
+          <span class="spacer"></span><span class="dim" style="font-size:12px">de ${quien}</span></div>
+        <div style="margin:10px 0;font-size:14px;font-weight:700">${quien} hará tu <b>${esc(t(l.taskId).icon)} ${esc(t(l.taskId).name)}</b></div>
+        ${esTake
+          ? (l.pointsOffered>0
+              ? `<div class="row" style="font-size:13px"><span class="dim">Le darás</span><span class="spacer"></span><span class="pts">${l.pointsOffered} pts</span></div>`
+              : `<div class="dim" style="font-size:13px">Sin puntos de por medio.</div>`)
+          : `<div class="row" style="font-size:13px"><span class="dim">A cambio tú harás:</span><span class="spacer"></span><span>${esc(t(o.offeredTaskId).icon)} ${esc(t(o.offeredTaskId).name)} <span class="pts">${t(o.offeredTaskId).points}</span></span></div>
+             ${o.pointsAsked>0?`<div class="row" style="font-size:13px;margin-top:6px"><span class="dim">Te pide además:</span><span class="spacer"></span><span class="pts">${o.pointsAsked} pts</span></div>`:""}`}
         <div class="row" style="gap:8px;margin-top:12px">
-          <button class="btn ok sm" style="flex:1" onclick="acceptOffer('${o.id}')">Aceptar</button>
-          <button class="btn sm" style="flex:1" onclick="rejectOffer('${o.id}')">Rechazar</button>
+          <button class="btn ok sm" style="flex:1" onclick="acceptOffer('${esc(o.id)}')">Aceptar</button>
+          <button class="btn sm" style="flex:1" onclick="rejectOffer('${esc(o.id)}')">Rechazar</button>
         </div></div>`;
     });
   }
@@ -1204,7 +1239,9 @@ function mMarket(){
         ${l.pointsOffered>0?`<div style="text-align:right"><div class="pts">+${l.pointsOffered}</div><div class="dim" style="font-size:10px">pts extra</div></div>`:""}</div>
         ${l.note?`<div class="dim" style="font-size:12px;margin-top:8px;font-style:italic">"${esc(l.note)}"</div>`:""}
         <div class="row" style="gap:8px;margin-top:12px">
-          ${l.pointsOffered>0?`<button class="btn primary sm" style="flex:1" onclick="confirmTake('${l.id}')">Me la quedo (+${l.pointsOffered})</button>`:`<button class="btn primary sm" style="flex:1" onclick="confirmTake('${l.id}')">Me la quedo</button>`}
+          ${yaPedida(l.id)
+            ? `<button class="btn sm" style="flex:1" disabled>Ya se la has pedido</button>`
+            : `<button class="btn primary sm" style="flex:1" onclick="confirmTake('${esc(l.id)}')">Pedírsela${l.pointsOffered>0?` (+${l.pointsOffered})`:""}</button>`}
           ${l.acceptsTrade?`<button class="btn sm" style="flex:1" onclick="sheetTrade('${l.id}')">Ofrecer trueque</button>`:""}
         </div></div>`;
     });
@@ -1244,7 +1281,8 @@ function confirmTake(listingId){
     <div class="mcard" style="margin-top:4px"><div class="row"><div class="tic">${esc(t.icon)}</div>
       <div style="flex:1"><div style="font-weight:800">${esc(t.name)}</div><div class="dim" style="font-size:12px">de ${esc(member(l.sellerId).name)}</div></div></div>
       <div class="row" style="margin-top:10px;font-size:13px"><span class="dim">Ganarás al completarla</span><span class="spacer"></span><span class="pts">${t.points}${l.pointsOffered>0?` + ${l.pointsOffered}`:""} pts</span></div></div>
-    <button class="btn primary w" style="margin-top:6px" onclick="takeListing('${listingId}','${S.profile}')">Sí, me la quedo</button>`);
+    <p class="dim" style="font-size:13px;margin:12px 0 6px">${esc(member(l.sellerId).name)} tiene que aceptarlo antes de que la tarea pase a ser tuya.</p>
+    <button class="btn primary w" style="margin-top:6px" onclick="takeListing('${esc(listingId)}','${esc(S.profile)}')">Pedírsela</button>`);
 }
 
 // Hoja para publicar una tarea
@@ -1294,6 +1332,7 @@ function mAchieve(){
     <div class="row"><b style="font-size:14px">Tu trabajo este mes</b></div>
     <div class="row" style="margin-top:10px"><span class="dim" style="font-size:13px">Puntos acumulados</span><span class="spacer"></span><span class="pts" style="font-size:18px">${lv.points}</span></div>
     ${prevPts!=null?`<div class="row" style="margin-top:6px"><span class="dim" style="font-size:13px">Mes anterior</span><span class="spacer"></span><span class="num dim">${prevPts}</span></div>
+      ${prev.hechas?`<div class="row" style="margin-top:4px"><span class="dim" style="font-size:13px">Adicionales hechas</span><span class="spacer"></span><span class="num dim">${prev.hechas[me.id]||0}${prev.vencidas&&prev.vencidas[me.id]?` · ${prev.vencidas[me.id]} sin hacer`:""}</span></div>`:""}
       <p class="dim" style="font-size:11px;margin-top:8px">El nivel se reinicia cada mes: refleja cuánto has trabajado este mes.</p>`:`<p class="dim" style="font-size:11px;margin-top:8px">El nivel se reinicia el día 1 de cada mes.</p>`}
   </div>
   <div class="sect-title">Logros</div>

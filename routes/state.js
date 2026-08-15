@@ -10,6 +10,7 @@ const { emptyFamilyState, syncMembers, listMembers, ensureFixedShape } =
   require("../services/familyService");
 const { sanitizeState, applyChildLimits } = require("../services/stateGuard");
 const { calcularRachas, cerrarSemanaRachas } = require("../services/rachas");
+const { resumenDelMes } = require("../services/puntos");
 
 const router = express.Router();
 
@@ -47,6 +48,33 @@ function claveSemana(d = fechaLocal()) {
   return t.getUTCFullYear() + "-W" + String(sem).padStart(2, "0");
 }
 
+// ---------------------------------------------------------------------------
+//  Vencimientos automáticos.
+//
+//  Antes el padre tenía que marcar "vencida" a mano, tarea por tarea, y en la
+//  práctica nadie lo hacía: las tareas sin hacer se quedaban eternamente en
+//  "pendiente" y el reparto del mes siguiente arrancaba sucio.
+//
+//  Al cerrar la semana, lo que quedó sin entregar se marca como vencido. Lo
+//  que el hijo SÍ entregó y el padre no llegó a mirar se respeta: no sería
+//  justo penalizar por un descuido del padre.
+// ---------------------------------------------------------------------------
+function vencerPendientes(state) {
+  let n = 0;
+  // Tareas fijas semanales
+  Object.keys(state.fixedState || {}).forEach((hijo) => {
+    Object.keys(state.fixedState[hijo] || {}).forEach((tid) => {
+      const casilla = state.fixedState[hijo][tid];
+      if (casilla && casilla.status === "pending") { casilla.status = "late"; n++; }
+    });
+  });
+  // Tareas adicionales
+  (state.extras || []).forEach((x) => {
+    if (x.status === "pending") { x.status = "late"; n++; }
+  });
+  return n;
+}
+
 function iniciarSemanaFijas(state) {
   state.fixedState = {};
   (state.members || []).filter((m) => m.role === "child").forEach((c) => {
@@ -69,9 +97,13 @@ function aplicarCiclos(state) {
 
   if (state.currentMonth !== mes) {
     state.history = state.history || {};
-    state.history[state.currentMonth] = { points: { ...(state.monthPoints || {}) } };
-    // Antes de vaciar las casillas hay que guardar la racha encadenada; si no,
-    // se perdería y todos empezarían de cero cada mes.
+    // Orden importante: primero se vence lo que quedó sin entregar, luego se
+    // calcula el resumen (así refleja la realidad) y solo después se vacía.
+    // Antes se archivaba state.monthPoints, un campo que nadie escribía nunca:
+    // el historial guardaba ceros.
+    vencerPendientes(state);
+    state.history[state.currentMonth] = resumenDelMes(state);
+    // La racha encadenada hay que guardarla antes de vaciar las casillas.
     cerrarSemanaRachas(state);
     state.currentMonth = mes;
     state.monthPoints = {};
@@ -81,6 +113,9 @@ function aplicarCiclos(state) {
     cambio = true;
   } else if (state.currentWeek !== semana) {
     cerrarSemanaRachas(state);
+    // Aquí NO se vence nada a propósito: las casillas de fijas se reinician
+    // acto seguido, así que marcarlas no dejaría rastro en ningún sitio. Y las
+    // adicionales son mensuales, no semanales: vencerlas ahora sería injusto.
     state.currentWeek = semana;
     if (state.generated) iniciarSemanaFijas(state);
     cambio = true;

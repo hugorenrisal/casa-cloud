@@ -112,15 +112,23 @@ function sanitizeState(entrada) {
     && (l.status !== "open" || idsAsignacion.has(l.assignmentId)));
   const idsAnuncio = new Set(listings.map((l) => l.id));
 
+  // Hay dos tipos de solicitud sobre un anuncio:
+  //   take  -> "me la quedo": no ofrece nada a cambio
+  //   trade -> propone cambiarla por una tarea suya
+  // Por eso los campos de la tarea ofrecida solo se exigen en los trueques.
   const offers = lista(s.offers).map(obj).map((o) => ({
     id: ident(o.id), listingId: ident(o.listingId), bidderId: ident(o.bidderId),
+    kind: unoDe(o.kind, ["take", "trade"], o.offeredTaskId ? "trade" : "take"),
     offeredAssignmentId: ident(o.offeredAssignmentId), offeredTaskId: ident(o.offeredTaskId),
     pointsAsked: ent(o.pointsAsked, 0, 0, 10000),
     status: unoDe(o.status, ["pending", "rejected", "accepted"], "rejected"),
     createdAt: ent(o.createdAt, 0, 0, 1e15),
-  })).filter((o) => o.id && idsAnuncio.has(o.listingId) && idsHijos.has(o.bidderId)
-    && idsExtras.has(o.offeredTaskId)
-    && (o.status !== "pending" || idsAsignacion.has(o.offeredAssignmentId)));
+  })).filter((o) => {
+    if (!o.id || !idsAnuncio.has(o.listingId) || !idsHijos.has(o.bidderId)) return false;
+    if (o.kind === "take") return true;
+    return idsExtras.has(o.offeredTaskId)
+      && (o.status !== "pending" || idsAsignacion.has(o.offeredAssignmentId));
+  });
 
   // El historial del mercado se conserva aunque la tarea ya no exista: es un
   // registro de lo ocurrido, y el cliente lo pinta a prueba de huecos.
@@ -137,10 +145,17 @@ function sanitizeState(entrada) {
     return out;
   };
 
+  // El archivo de cada mes: puntos y cuántas adicionales acabaron hechas o sin
+  // hacer (lo escribe resumenDelMes al cerrar el mes).
   const history = {};
   Object.keys(obj(s.history)).slice(0, 120).forEach((k) => {
     if (!/^\d{4}-\d{2}$/.test(k)) return;
-    history[k] = { points: porHijo(obj(obj(s.history)[k]).points) };
+    const m = obj(obj(s.history)[k]);
+    history[k] = {
+      points: porHijo(m.points),
+      hechas: porHijo(m.hechas),
+      vencidas: porHijo(m.vencidas),
+    };
   });
 
   const dishes = lista(s.dishes, 150).map(obj).map((p, i) => ({
