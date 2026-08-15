@@ -32,6 +32,17 @@ app.use(express.static(path.join(__dirname, "public")));
 app.get("/api/health", (req, res) => res.json({ ok: true, db: hasDatabase() }));
 
 // ---------------------------------------------------------------------------
+//  Demo pública (/demo)
+//  Sirve la misma aplicación, pero el cliente carga demo.js, que sustituye la
+//  capa de red por datos de ejemplo en memoria. Sirve para enseñar la app sin
+//  dar contraseñas. No toca la base de datos ni salta ninguna comprobación de
+//  sesión: en modo demo el navegador no llega a llamar a la API.
+// ---------------------------------------------------------------------------
+app.get("/demo", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+// ---------------------------------------------------------------------------
 //  Verificación de dominio para la app de Android (TWA).
 //  Es lo que permite que la app instalada abra a pantalla completa en vez de
 //  con la barra del navegador. La huella SHA-256 la da Google Play DESPUÉS de

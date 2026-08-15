@@ -22,6 +22,12 @@ los móviles de tus hermanos.
 > **La dirección de tu app es:** `https://casa-cloud.onrender.com`
 > Apúntala. Es la misma para todos los dispositivos.
 
+> 👀 **¿Solo quieres enseñársela a alguien?** Manda este enlace:
+> **https://casa-cloud.onrender.com/demo**
+> Se abre con una familia de ejemplo, **sin pedir contraseña**, y trae un botón para cambiar
+> entre el panel del padre y la app del hijo. No hace falta que hagas nada de esta guía.
+> Ver la [sección de la demo](#la-demo-para-enseñar-la-app) al final.
+
 ---
 
 ## PARTE 1 — Comprobar que la app está viva
@@ -263,6 +269,36 @@ Por si necesitas revisarlas de un vistazo:
 | `GMAIL_APP_PASSWORD` | 16 letras sin espacios | Permiso de Gmail para enviar |
 | `EMAIL_FROM` | `Casa <tucorreo@gmail.com>` | Nombre que ve quien recibe |
 | `APP_URL` | `https://casa-cloud.onrender.com` | Base de los enlaces de los correos |
+
+---
+
+## La demo (para enseñar la app)
+
+Si solo quieres **enseñar** la app —a un amigo, a un familiar, a quien sea— sin darle una
+contraseña ni meterle en tu familia, manda este enlace:
+
+**https://casa-cloud.onrender.com/demo**
+
+Qué se encuentra quien lo abra:
+
+- Una **familia de ejemplo** (Carlos y sus tres hijos) con las tareas ya repartidas, el mercado
+  entre hermanos en marcha y un mes anterior en el historial.
+- Un botón **"Ver como hija"** en la barra de abajo, que cambia entre el **panel del padre** y
+  la **app del hijo**. Es la forma de enseñar las dos caras sin necesitar dos dispositivos.
+- Botones de **"Reiniciar"** (deja la demo como estaba) y **"Salir"**.
+
+Puede tocar todo lo que quiera: marcar tareas, aprobar, cambiar el menú… **no pasa nada**.
+
+### ¿Es seguro pasar ese enlace?
+
+Sí. La demo funciona **entera dentro del navegador de quien la abre**:
+
+- **No** se conecta con el servidor: ni una sola petición sale a la API.
+- **No** puede ver, ni tocar, ni acercarse a los datos de tu familia real.
+- **No** hay cuentas, ni contraseñas, ni base de datos por medio.
+- Lo que toque se borra al recargar la página.
+
+Dicho de otro modo: es una maqueta con datos inventados que se comporta como la app de verdad.
 
 ---
 

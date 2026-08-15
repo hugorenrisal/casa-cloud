@@ -13,7 +13,9 @@
 // Si no, los dispositivos que ya tengan la app instalada seguirán sirviendo la
 // copia vieja guardada en su caché y no verán el cambio nunca.
 // v2 (ago 2026): iconos de iOS regenerados sin transparencia.
-const VERSION = "casa-v2";
+// v3 (ago 2026): el JavaScript pasa a "red primero" para que los cambios de
+//                código lleguen de inmediato, y se añade demo.js.
+const VERSION = "casa-v3";
 const CASCARON = [
   "/",
   "/manifest.webmanifest",
@@ -68,15 +70,39 @@ self.addEventListener("fetch", (evento) => {
     return;
   }
 
-  // Recursos estáticos (iconos, manifest): caché primero, y si no, red.
+  // Imágenes y manifest: caché primero (casi nunca cambian y así abre al
+  // instante). Cuando cambien de verdad, se sube VERSION y se renuevan.
+  const esImagen = /\.(png|jpg|jpeg|svg|gif|webp|ico)$/i.test(url.pathname) ||
+                   url.pathname === "/manifest.webmanifest";
+  if (esImagen) {
+    evento.respondWith(
+      caches.match(peticion).then((guardada) => guardada || fetch(peticion).then((respuesta) => {
+        if (respuesta.ok) {
+          const copia = respuesta.clone();
+          caches.open(VERSION).then((c) => c.put(peticion, copia)).catch(() => {});
+        }
+        return respuesta;
+      }))
+    );
+    return;
+  }
+
+  // Todo lo demás (JavaScript, CSS…): RED PRIMERO, con la caché como respaldo
+  // si no hay conexión.
+  // Antes esto era "caché primero" y provocaba que un cambio en el código no
+  // llegara nunca a quien ya tuviera la app instalada: seguía ejecutando la
+  // versión vieja guardada. Como la app se actualiza sola al desplegar, la
+  // prioridad aquí es traer siempre lo último.
   evento.respondWith(
-    caches.match(peticion).then((guardada) => guardada || fetch(peticion).then((respuesta) => {
-      if (respuesta.ok) {
-        const copia = respuesta.clone();
-        caches.open(VERSION).then((c) => c.put(peticion, copia)).catch(() => {});
-      }
-      return respuesta;
-    }))
+    fetch(peticion)
+      .then((respuesta) => {
+        if (respuesta.ok) {
+          const copia = respuesta.clone();
+          caches.open(VERSION).then((c) => c.put(peticion, copia)).catch(() => {});
+        }
+        return respuesta;
+      })
+      .catch(() => caches.match(peticion))
   );
 });
 

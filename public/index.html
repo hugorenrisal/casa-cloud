@@ -1550,7 +1550,28 @@ async function _consumePendingInvite(){
   try { await api("/api/invitations/accept",{method:"POST",body:{token:t}}); ME=(await api("/api/auth/me")).user; return true; }
   catch(e){ alert("No se pudo aceptar la invitación: "+Auth.errKey(e.message)); return false; }
 }
-bootstrap();
+
+// ---------------------------------------------------------------------------
+//  Modo demo (/demo)
+//  Carga demo.js, que sustituye api() por un servidor falso en memoria. Sirve
+//  para enseñar la app sin dar contraseñas y sin tocar datos reales: en modo
+//  demo NO sale ni una petición al servidor. Hay que cargarlo ANTES de
+//  bootstrap(), porque si no la app ya habría llamado a la API de verdad.
+// ---------------------------------------------------------------------------
+function esModoDemo(){
+  return location.pathname === "/demo" ||
+         location.pathname === "/demo/" ||
+         urlPath() === "demo";
+}
+if (esModoDemo()) {
+  const _sDemo = document.createElement("script");
+  _sDemo.src = "/demo.js";
+  _sDemo.onload = () => bootstrap();
+  _sDemo.onerror = () => showFatal("No se pudo cargar la demo.");
+  document.head.appendChild(_sDemo);
+} else {
+  bootstrap();
+}
 
 // Service worker: hace la app instalable (requisito de Google Play para poder
 // publicarla como TWA) y que abra al instante. Nunca cachea /api/ — ver sw.js.
