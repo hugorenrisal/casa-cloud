@@ -255,7 +255,13 @@ function showConn(ok){
   el.title = ok? "Conectado" : "Sin conexión con el servidor";
 }
 const uid=p=>p+Math.random().toString(36).slice(2,8);
-const esc=s=>String(s).replace(/[<>&"]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c]));
+// Todo lo que venga del estado se pinta con innerHTML: hay que escaparlo SIEMPRE.
+// El estado es compartido dentro de la familia, así que los textos que escribe
+// un miembro acaban en la pantalla de los demás. Se escapa también la comilla
+// simple para que sea seguro dentro de atributos y de onclick="fn('...')".
+const esc=s=>String(s==null?"":s).replace(/[<>&"']/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;","'":"&#39;"}[c]));
+// Color que se inserta dentro de un atributo style: solo se admite hexadecimal.
+const escColor=c=>/^#[0-9a-fA-F]{6}$/.test(String(c||""))?String(c):"#9c8a76";
 const fmt=n=>(Math.round(n*100)/100).toFixed(2);
 const LOAD={normal:1,reducida:.6,minima:.3};
 const LOAD_LABEL={normal:"Normal",reducida:"Reducida",minima:"Mínima"};
@@ -716,7 +722,7 @@ function dHome(){
       <p class="dim" style="font-size:12px;margin-bottom:12px">Fija si completa ≥75% · adicionales solo con el 100% de las fijas</p>
       <table><thead><tr><th>Hijo/a</th><th>Fijas</th><th>Fija €/sem</th><th>Extra €/mes</th><th>Total</th></tr></thead><tbody>
       ${kids.map(k=>{const m=money(k.id);const r=Math.round(m.ratio*100);
-        return `<tr><td><b>${k.name}</b></td>
+        return `<tr><td><b>${esc(k.name)}</b></td>
           <td><span class="chip" style="${m.ratio>=1?'color:var(--green)':m.ratio>=.75?'color:var(--cyan)':'color:var(--red)'}">${r}%</span></td>
           <td class="num">${fmt(m.fixedEarned)}</td>
           <td class="num">${m.canExtra?fmt(m.extraEarned):'<span class="dim">bloqueado</span>'}</td>
@@ -727,7 +733,7 @@ function dHome(){
       <h3 style="font-size:15px;margin-bottom:6px">Equilibrio de esfuerzo (adicionales)</h3>
       <p class="dim" style="font-size:12px;margin-bottom:4px">Se reparte el peso, no el número de tareas.</p>
       <div class="bal">${kids.map(k=>{const p=extraPointsAssigned(k.id);const max=Math.max(1,...kids.map(c=>extraPointsAssigned(c.id)));
-        return `<div class="col"><div class="bar" style="height:${30+p/max*70}%;background:linear-gradient(180deg,${k.color},${k.color}88)"><span class="v">${p}</span></div><span class="nm">${k.name}</span></div>`}).join("")}</div>
+        return `<div class="col"><div class="bar" style="height:${30+p/max*70}%;background:linear-gradient(180deg,${escColor(k.color)},${escColor(k.color)}88)"><span class="v">${p}</span></div><span class="nm">${esc(k.name)}</span></div>`}).join("")}</div>
     </div>
   </div>
   ${marketActivityCard()}`;
@@ -743,11 +749,11 @@ function marketActivityCard(){
     <h3 style="font-size:15px;margin-bottom:4px">Mercado de tareas entre hermanos</h3>
     <p class="dim" style="font-size:12px;margin-bottom:12px">Solo lectura. Los hijos se organizan; tú validas igualmente quién hace cada tarea.</p>
     ${open.length?`<div class="sect-title">En venta ahora</div>
-      ${open.map(l=>`<div class="task-line"><div class="tic">${t(l.taskId).icon}</div><div style="flex:1"><b>${esc(t(l.taskId).name)}</b><div class="dim" style="font-size:12px">${member(l.sellerId).name}${l.pointsOffered>0?` · ofrece ${l.pointsOffered} pts`:""}${l.acceptsTrade?" · acepta trueque":""}</div></div><span class="chip p-extra">${t(l.taskId).points} pts</span></div>`).join("")}`:""}
+      ${open.map(l=>`<div class="task-line"><div class="tic">${esc(t(l.taskId).icon)}</div><div style="flex:1"><b>${esc(t(l.taskId).name)}</b><div class="dim" style="font-size:12px">${esc(member(l.sellerId).name)}${l.pointsOffered>0?` · ofrece ${l.pointsOffered} pts`:""}${l.acceptsTrade?" · acepta trueque":""}</div></div><span class="chip p-extra">${t(l.taskId).points} pts</span></div>`).join("")}`:""}
     ${log.length?`<div class="sect-title" style="margin-top:14px">Operaciones recientes</div>
       ${log.map(m=>{const desc=m.kind==="take"
-        ?`${member(m.to).name} se quedó <b>${esc(t(m.taskId).name)}</b> de ${member(m.from).name}${m.points>0?` (+${m.points} pts)`:""}`
-        :`${member(m.from).name} ↔ ${member(m.to).name}: <b>${esc(t(m.taskId).name)}</b> por <b>${m.giveTaskId?esc(t(m.giveTaskId).name):"—"}</b>${m.points>0?` (+${m.points} pts)`:""}`;
+        ?`${esc(member(m.to).name)} se quedó <b>${esc(t(m.taskId).name)}</b> de ${esc(member(m.from).name)}${m.points>0?` (+${m.points} pts)`:""}`
+        :`${esc(member(m.from).name)} ↔ ${esc(member(m.to).name)}: <b>${esc(t(m.taskId).name)}</b> por <b>${m.giveTaskId?esc(t(m.giveTaskId).name):"—"}</b>${m.points>0?` (+${m.points} pts)`:""}`;
         return `<div class="task-line"><div style="flex:1;font-size:13px">${desc}</div></div>`}).join("")}`:""}
   </div>`;
 }
@@ -756,7 +762,7 @@ function dFixed(){
   return `<div class="card" style="margin-bottom:18px"><div class="row">
     <div><h3 style="font-size:15px">Lista común de tareas fijas</h3><p class="dim" style="font-size:13px;margin-top:4px">Las mismas para todos los hijos. Base de la paga fija (${fmt(S.fixedPay)} €/semana al completar ≥75%). Marca cada tarea como diaria o semanal.</p></div>
     <span class="spacer"></span><button class="btn primary sm" onclick="modalAddFixed()">+ Añadir</button></div></div>
-  <div class="card">${S.fixedTasks.map(t=>`<div class="task-line"><div class="tic">${t.icon}</div>
+  <div class="card">${S.fixedTasks.map(t=>`<div class="task-line"><div class="tic">${esc(t.icon)}</div>
     <div style="flex:1"><b>${esc(t.name)}</b><div class="dim" style="font-size:12px">${isDaily(t)?"Cada día · 7 por semana":"Una vez por semana"}</div></div>
     <div class="seg" style="width:180px;flex:none">
       <button class="${isDaily(t)?"on":""}" onclick="setFixedFreq('${t.id}','daily')">Diaria</button>
@@ -771,12 +777,12 @@ function dExtra(){
     <span class="spacer"></span><button class="btn primary sm" onclick="modalAddExtra()">+ Añadir</button></div></div>
   <div class="cols">
     <div class="card"><h3 style="font-size:14px;margin-bottom:12px">Catálogo</h3>
-      ${S.extraTasks.map(t=>`<div class="task-line"><div class="tic">${t.icon}</div><div style="flex:1"><b>${esc(t.name)}</b></div><span class="pts">${t.points}</span><button class="btn ghost sm" style="color:var(--red)" onclick="delExtra('${t.id}')">✕</button></div>`).join("")}
+      ${S.extraTasks.map(t=>`<div class="task-line"><div class="tic">${esc(t.icon)}</div><div style="flex:1"><b>${esc(t.name)}</b></div><span class="pts">${t.points}</span><button class="btn ghost sm" style="color:var(--red)" onclick="delExtra('${t.id}')">✕</button></div>`).join("")}
     </div>
     <div class="card"><div class="row" style="margin-bottom:12px"><h3 style="font-size:14px">Reparto actual</h3><span class="spacer"></span><button class="btn sm" onclick="generateMonth()">${S.generated?"Volver a repartir":"Generar"}</button></div>
       ${S.generated?children().map(k=>{const list=S.extras.filter(x=>x.memberId===k.id);
-        return `<div style="margin-bottom:14px"><div class="row" style="margin-bottom:6px"><b style="color:${k.color}">${k.name}</b><span class="spacer"></span><span class="pts">${extraPointsAssigned(k.id)} pts</span></div>
-        ${list.map(x=>{const t=extraTask(x.taskId);return `<div class="row" style="font-size:13px;padding:4px 0"><span>${t.icon} ${esc(t.name)}</span><span class="spacer"></span><span class="dim num">${t.points}</span></div>`}).join("")}</div>`}).join(""):'<div class="empty">Genera el mes para ver el reparto.</div>'}
+        return `<div style="margin-bottom:14px"><div class="row" style="margin-bottom:6px"><b style="color:${escColor(k.color)}">${esc(k.name)}</b><span class="spacer"></span><span class="pts">${extraPointsAssigned(k.id)} pts</span></div>
+        ${list.map(x=>{const t=extraTask(x.taskId);return `<div class="row" style="font-size:13px;padding:4px 0"><span>${esc(t.icon)} ${esc(t.name)}</span><span class="spacer"></span><span class="dim num">${t.points}</span></div>`}).join("")}</div>`}).join(""):'<div class="empty">Genera el mes para ver el reparto.</div>'}
     </div>
   </div>`;
 }
@@ -799,7 +805,7 @@ function dValidate(){
         : (r.kind==="fixed"
             ? `<button class="btn sm" onclick="setFixedStatus('${r.childId}','${r.taskId}','late')">Marcar vencida</button>`
             : `<button class="btn sm" onclick="setExtraStatus('${r.id}','late')">Marcar vencida</button>`);
-      return `<tr><td>${t.icon} ${esc(t.name)}</td><td>${member(r.childId).name}</td><td><span class="chip ${r.kind==="fixed"?"p-fixed":"p-extra"}">${r.kind==="fixed"?"semanal":"extra "+t.points}</span></td>
+      return `<tr><td>${esc(t.icon)} ${esc(t.name)}</td><td>${esc(member(r.childId).name)}</td><td><span class="chip ${r.kind==="fixed"?"p-fixed":"p-extra"}">${r.kind==="fixed"?"semanal":"extra "+t.points}</span></td>
         <td>${r.status==="submitted"?'<span class="pill p-wait">por validar</span>':'<span class="pill p-pending">sin empezar</span>'}</td><td style="text-align:right">${act}</td></tr>`}).join("")}
   </tbody></table></div>`;
 }
@@ -836,7 +842,7 @@ function dEcon(){
       <p class="dim" style="font-size:12px;margin-top:14px">Regla: ≥75% de fijas → cobra la paga fija. 100% de fijas → además gana las adicionales.</p>
     </div>
     <div class="card"><h3 style="font-size:15px;margin-bottom:14px">Disponibilidad de cada hijo/a</h3>
-      ${children().map(k=>`<div style="margin-bottom:14px"><div class="row" style="margin-bottom:7px"><b style="color:${k.color}">${k.name}</b></div>
+      ${children().map(k=>`<div style="margin-bottom:14px"><div class="row" style="margin-bottom:7px"><b style="color:${escColor(k.color)}">${esc(k.name)}</b></div>
         <div class="seg">${Object.keys(LOAD_LABEL).map(v=>`<button class="${k.load===v?"on":""}" onclick="setLoad('${k.id}','${v}')">${LOAD_LABEL[v]}</button>`).join("")}</div></div>`).join("")}
       <button class="btn ghost w sm" style="margin-top:10px;color:var(--faint)" onclick="resetAll()">Reiniciar datos de ejemplo</button>
     </div>
@@ -903,10 +909,10 @@ const MOB_NAV=[["home","Inicio","home"],["market","Mercado","swap"],["achieve","
 function renderMob(){
   const me=member(S.profile);
   const lv=levelOf(me.id);
-  const av=`<div class="avatar" style="width:44px;height:44px;background:${me.color}22;color:${me.color}">${me.name[0]}</div>`;
+  const av=`<div class="avatar" style="width:44px;height:44px;background:${escColor(me.color)}22;color:${escColor(me.color)}">${esc(me.name[0]||"?")}</div>`;
   const body=({home:mHome,market:mMarket,achieve:mAchieve,menu:mMenu,rewards:mRewards}[S.mobTab]||mHome)();
   $("mob").innerHTML=`<div class="phone">
-    <div class="head">${av}<div><h1>Hola, ${me.name}</h1><div class="sub">Nivel ${lv.level} · ${lv.points} pts este mes</div></div>
+    <div class="head">${av}<div><h1>Hola, ${esc(me.name)}</h1><div class="sub">Nivel ${lv.level} · ${lv.points} pts este mes</div></div>
       <button class="icon-btn" onclick="mobSwitchUser()">${svg("users")}</button></div>
     <div class="screen${_quiet?" quiet":""}">${body}</div>
   </div>
@@ -945,7 +951,7 @@ function fixedCardMob(t,meId){
     const days=st.days||[false,false,false,false,false,false,false];
     const ti=todayIdx(); const done=days.filter(Boolean).length;
     return `<div class="mcard"><div class="row" style="margin-bottom:10px">
-      <div class="tic" style="width:38px;height:38px;font-size:17px">${t.icon}</div>
+      <div class="tic" style="width:38px;height:38px;font-size:17px">${esc(t.icon)}</div>
       <div style="flex:1"><b>${esc(t.name)}</b><div class="dim" style="font-size:11px">Diaria · ${done}/7 días${done===7?' ✓':''}</div></div></div>
       <div style="display:flex;gap:6px">${days.map((d,i)=>`<button onclick="toggleFixedDay('${meId}','${t.id}',${i})" style="flex:1;aspect-ratio:1;border-radius:11px;border:1.5px solid ${d?'var(--green)':'var(--line)'};background:${d?'var(--green)':'#fff'};color:${d?'#fff':'var(--dim)'};font-weight:800;font-size:12px;font-family:var(--num);${i===ti?'box-shadow:0 0 0 2.5px var(--accent)':''}">${DAYLBL[i]}</button>`).join("")}</div>
     </div>`;
@@ -954,7 +960,7 @@ function fixedCardMob(t,meId){
   const status=st.status||"pending";
   const lbl={pending:"Toca a ti",submitted:"Esperando visto bueno",approved:"Hecha ✓",late:"Vencida"}[status];
   const cls={pending:"p-pending",submitted:"p-wait",approved:"p-ok",late:"p-late"}[status];
-  return `<div class="task ${status==="approved"?"approved":""}"><div class="tic" style="width:40px;height:40px;border-radius:11px;background:var(--card2);display:grid;place-items:center;font-size:18px">${t.icon}</div>
+  return `<div class="task ${status==="approved"?"approved":""}"><div class="tic" style="width:40px;height:40px;border-radius:11px;background:var(--card2);display:grid;place-items:center;font-size:18px">${esc(t.icon)}</div>
     <div style="flex:1"><div class="tname">${esc(t.name)}</div><div class="tsub"><span class="pill p-fixed" style="margin-right:5px">semanal</span><span class="pill ${cls}">${lbl}</span></div></div>
     <div style="text-align:right">${status==="pending"?`<button class="btn ok sm" onclick="setFixedStatus('${meId}','${t.id}','submitted')">Hecha</button>`:""}</div></div>`;
 }
@@ -963,7 +969,7 @@ function taskRowMob(t,status,onMark,kind){
   const lbl={pending:"Toca a ti",submitted:"Esperando visto bueno",approved:"Aprobada ✓",late:"Vencida"}[status];
   const cls={pending:"p-pending",submitted:"p-wait",approved:"p-ok",late:"p-late"}[status];
   const pts=kind==="extra"?`+${t.points}`:"";
-  return `<div class="task ${status==="approved"?"approved":""}"><div class="tic" style="width:40px;height:40px;border-radius:11px;background:var(--card2);display:grid;place-items:center;font-size:18px">${t.icon}</div>
+  return `<div class="task ${status==="approved"?"approved":""}"><div class="tic" style="width:40px;height:40px;border-radius:11px;background:var(--card2);display:grid;place-items:center;font-size:18px">${esc(t.icon)}</div>
     <div style="flex:1"><div class="tname">${esc(t.name)}</div><div class="tsub"><span class="pill ${cls}">${lbl}</span></div></div>
     <div style="text-align:right">${pts?`<div class="pts">${pts}</div>`:""}
     ${status==="pending"?`<button class="btn ok sm" style="margin-top:6px" onclick="${onMark()}">Hecha</button>`:""}</div></div>`;
@@ -979,7 +985,7 @@ function extraRowMob(x,meId){
     if(x.bounty.to===meId) bounty=`<div class="dim" style="font-size:11px;color:var(--green)">+${x.bounty.points} pts de mercado</div>`;
     else if(x.bounty.from===meId) bounty=`<div class="dim" style="font-size:11px;color:var(--red)">−${x.bounty.points} pts de mercado</div>`;
   }
-  return `<div class="task ${x.status==="approved"?"approved":""}"><div class="tic" style="width:40px;height:40px;border-radius:11px;background:var(--card2);display:grid;place-items:center;font-size:18px">${t.icon}</div>
+  return `<div class="task ${x.status==="approved"?"approved":""}"><div class="tic" style="width:40px;height:40px;border-radius:11px;background:var(--card2);display:grid;place-items:center;font-size:18px">${esc(t.icon)}</div>
     <div style="flex:1"><div class="tname">${esc(t.name)}</div>
       <div class="tsub">${x.listed?`<span class="pill p-extra">🏷️ en el mercado</span>`:`<span class="pill ${cls}">${lbl}</span>`}</div>${bounty}</div>
     <div style="text-align:right"><div class="pts">+${t.points}</div>
@@ -1012,9 +1018,9 @@ function mMarket(){
     incoming.forEach(o=>{
       const l=S.listings.find(x=>x.id===o.listingId);
       html+=`<div class="mcard" style="border-color:var(--violet)">
-        <div class="row"><span class="pill p-extra">trueque</span><span class="spacer"></span><span class="dim" style="font-size:12px">de ${member(o.bidderId).name}</span></div>
-        <div style="margin:10px 0;font-size:14px;font-weight:700">${member(o.bidderId).name} hará tu <b>${t(l.taskId).icon} ${esc(t(l.taskId).name)}</b></div>
-        <div class="row" style="font-size:13px"><span class="dim">A cambio tú harás:</span><span class="spacer"></span><span>${t(o.offeredTaskId).icon} ${esc(t(o.offeredTaskId).name)} <span class="pts">${t(o.offeredTaskId).points}</span></span></div>
+        <div class="row"><span class="pill p-extra">trueque</span><span class="spacer"></span><span class="dim" style="font-size:12px">de ${esc(member(o.bidderId).name)}</span></div>
+        <div style="margin:10px 0;font-size:14px;font-weight:700">${esc(member(o.bidderId).name)} hará tu <b>${esc(t(l.taskId).icon)} ${esc(t(l.taskId).name)}</b></div>
+        <div class="row" style="font-size:13px"><span class="dim">A cambio tú harás:</span><span class="spacer"></span><span>${esc(t(o.offeredTaskId).icon)} ${esc(t(o.offeredTaskId).name)} <span class="pts">${t(o.offeredTaskId).points}</span></span></div>
         ${o.pointsAsked>0?`<div class="row" style="font-size:13px;margin-top:6px"><span class="dim">Te pide además:</span><span class="spacer"></span><span class="pts">${o.pointsAsked} pts</span></div>`:""}
         <div class="row" style="gap:8px;margin-top:12px">
           <button class="btn ok sm" style="flex:1" onclick="acceptOffer('${o.id}')">Aceptar</button>
@@ -1029,7 +1035,7 @@ function mMarket(){
     myListings.forEach(l=>{
       const offs=S.offers.filter(o=>o.listingId===l.id && o.status==="pending");
       html+=`<div class="mcard"><div class="row">
-        <div class="tic" style="width:38px;height:38px;font-size:17px">${t(l.taskId).icon}</div>
+        <div class="tic" style="width:38px;height:38px;font-size:17px">${esc(t(l.taskId).icon)}</div>
         <div style="flex:1"><div style="font-weight:800">${esc(t(l.taskId).name)}</div>
           <div class="dim" style="font-size:12px">${l.pointsOffered>0?`Ofreces ${l.pointsOffered} pts`:""}${l.pointsOffered>0&&l.acceptsTrade?" · ":""}${l.acceptsTrade?"Acepta trueque":""}</div></div>
         <span class="pts">${t(l.taskId).points}</span></div>
@@ -1045,9 +1051,9 @@ function mMarket(){
   }else{
     board.forEach(l=>{
       html+=`<div class="mcard"><div class="row">
-        <div class="tic" style="width:42px;height:42px;font-size:19px">${t(l.taskId).icon}</div>
+        <div class="tic" style="width:42px;height:42px;font-size:19px">${esc(t(l.taskId).icon)}</div>
         <div style="flex:1"><div style="font-weight:800">${esc(t(l.taskId).name)}</div>
-          <div class="dim" style="font-size:12px">de ${member(l.sellerId).name} · esfuerzo ${t(l.taskId).points}</div></div>
+          <div class="dim" style="font-size:12px">de ${esc(member(l.sellerId).name)} · esfuerzo ${t(l.taskId).points}</div></div>
         ${l.pointsOffered>0?`<div style="text-align:right"><div class="pts">+${l.pointsOffered}</div><div class="dim" style="font-size:10px">pts extra</div></div>`:""}</div>
         ${l.note?`<div class="dim" style="font-size:12px;margin-top:8px;font-style:italic">"${esc(l.note)}"</div>`:""}
         <div class="row" style="gap:8px;margin-top:12px">
@@ -1063,7 +1069,7 @@ function mMarket(){
     html+=`<div class="empty" style="padding:18px">No tienes tareas adicionales libres para vender.</div>`;
   }else{
     sellable.forEach(x=>{
-      html+=`<div class="task"><div class="tic" style="width:40px;height:40px;font-size:18px">${t(x.taskId).icon}</div>
+      html+=`<div class="task"><div class="tic" style="width:40px;height:40px;font-size:18px">${esc(t(x.taskId).icon)}</div>
         <div style="flex:1"><div class="tname">${esc(t(x.taskId).name)}</div><div class="tsub">${t(x.taskId).points} pts de esfuerzo</div></div>
         <button class="btn sm" onclick="sheetPublish('${x.id}')">Vender / cambiar</button></div>`;
     });
@@ -1074,8 +1080,8 @@ function mMarket(){
     html+=`<div class="sect-title" style="margin-top:18px">🧾 Movimientos recientes</div>`;
     log.forEach(m=>{
       const desc = m.kind==="take"
-        ? `${member(m.to).name} se quedó <b>${t(m.taskId).icon} ${esc(t(m.taskId).name)}</b> de ${member(m.from).name}${m.points>0?` (+${m.points} pts)`:""}`
-        : `${member(m.from).name} y ${member(m.to).name} cambiaron <b>${t(m.taskId).icon}</b> ↔ <b>${m.giveTaskId?t(m.giveTaskId).icon:""}</b>${m.points>0?` (+${m.points} pts)`:""}`;
+        ? `${esc(member(m.to).name)} se quedó <b>${esc(t(m.taskId).icon)} ${esc(t(m.taskId).name)}</b> de ${esc(member(m.from).name)}${m.points>0?` (+${m.points} pts)`:""}`
+        : `${esc(member(m.from).name)} y ${esc(member(m.to).name)} cambiaron <b>${esc(t(m.taskId).icon)}</b> ↔ <b>${m.giveTaskId?t(m.giveTaskId).icon:""}</b>${m.points>0?` (+${m.points} pts)`:""}`;
       html+=`<div class="mcard" style="padding:11px 14px"><div style="font-size:13px">${desc}</div></div>`;
     });
   }
@@ -1088,8 +1094,8 @@ function confirmTake(listingId){
   const l=S.listings.find(x=>x.id===listingId); if(!l)return;
   const t=extraTask(l.taskId);
   openSheet(`<h3 style="margin-bottom:8px">¿Te quedas esta tarea?</h3>
-    <div class="mcard" style="margin-top:4px"><div class="row"><div class="tic">${t.icon}</div>
-      <div style="flex:1"><div style="font-weight:800">${esc(t.name)}</div><div class="dim" style="font-size:12px">de ${member(l.sellerId).name}</div></div></div>
+    <div class="mcard" style="margin-top:4px"><div class="row"><div class="tic">${esc(t.icon)}</div>
+      <div style="flex:1"><div style="font-weight:800">${esc(t.name)}</div><div class="dim" style="font-size:12px">de ${esc(member(l.sellerId).name)}</div></div></div>
       <div class="row" style="margin-top:10px;font-size:13px"><span class="dim">Ganarás al completarla</span><span class="spacer"></span><span class="pts">${t.points}${l.pointsOffered>0?` + ${l.pointsOffered}`:""} pts</span></div></div>
     <button class="btn primary w" style="margin-top:6px" onclick="takeListing('${listingId}','${S.profile}')">Sí, me la quedo</button>`);
 }
@@ -1098,7 +1104,7 @@ function confirmTake(listingId){
 function sheetPublish(assignmentId){
   const x=S.extras.find(e=>e.id===assignmentId); const t=extraTask(x.taskId);
   openSheet(`<h3 style="margin-bottom:4px">Poner en el mercado</h3>
-    <div class="dim" style="font-size:13px;margin-bottom:16px">${t.icon} ${esc(t.name)} · ${t.points} pts de esfuerzo</div>
+    <div class="dim" style="font-size:13px;margin-bottom:16px">${esc(t.icon)} ${esc(t.name)} · ${t.points} pts de esfuerzo</div>
     <div class="field"><label>Puntos extra que ofreces a quien la haga</label><input id="plPoints" type="number" min="0" value="0" inputmode="numeric"></div>
     <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;font-weight:700;font-size:14px;cursor:pointer">
       <input id="plTrade" type="checkbox" checked style="width:auto;transform:scale(1.3)"> Aceptar también ofertas de trueque</label>
@@ -1113,9 +1119,9 @@ function sheetTrade(listingId){
   const mine=S.extras.filter(x=>x.memberId===me.id && x.status==="pending" && !x.listed);
   if(!mine.length){ openSheet(`<h3 style="margin-bottom:10px">Sin tareas para cambiar</h3><p class="dim" style="font-size:14px">No tienes tareas adicionales libres que ofrecer a cambio.</p><button class="btn w" onclick="closeSheet()">Entendido</button>`); return; }
   openSheet(`<h3 style="margin-bottom:4px">Ofrecer un trueque</h3>
-    <div class="dim" style="font-size:13px;margin-bottom:16px">Quieres la <b>${t.icon} ${esc(t.name)}</b> de ${member(l.sellerId).name}</div>
+    <div class="dim" style="font-size:13px;margin-bottom:16px">Quieres la <b>${esc(t.icon)} ${esc(t.name)}</b> de ${esc(member(l.sellerId).name)}</div>
     <div class="field"><label>¿Qué tarea tuya ofreces a cambio?</label>
-      <select id="toTask">${mine.map(x=>`<option value="${x.id}">${extraTask(x.taskId).icon} ${esc(extraTask(x.taskId).name)} (${extraTask(x.taskId).points} pts)</option>`).join("")}</select></div>
+      <select id="toTask">${mine.map(x=>`<option value="${x.id}">${esc(extraTask(x.taskId).icon)} ${esc(extraTask(x.taskId).name)} (${extraTask(x.taskId).points} pts)</option>`).join("")}</select></div>
     <div class="field"><label>Puntos que pides además (si su tarea es más pesada)</label><input id="toPoints" type="number" min="0" value="0" inputmode="numeric"></div>
     <button class="btn primary w" onclick="submitTradeOffer('${listingId}','${S.profile}')">Enviar oferta</button>`);
 }
@@ -1165,7 +1171,7 @@ function mRewards(){
   const me=member(S.profile); const pts=levelOf(me.id).points;
   return `<div class="mcard" style="background:linear-gradient(160deg,#fff,#fff0df)"><div class="row"><span class="dim" style="font-size:13px">Tienes</span><span class="spacer"></span><span class="pts" style="font-size:22px">${pts} pts</span></div></div>
   ${S.rewards.map(r=>{const can=pts>=r.cost;
-    return `<div class="mcard"><div class="row"><div><div style="font-weight:500">${esc(r.title)}</div><div class="dim" style="font-size:12px">${r.type}</div></div><span class="spacer"></span><span class="pts">${r.cost}</span></div>
+    return `<div class="mcard"><div class="row"><div><div style="font-weight:500">${esc(r.title)}</div><div class="dim" style="font-size:12px">${esc(r.type)}</div></div><span class="spacer"></span><span class="pts">${r.cost}</span></div>
     <button class="btn ${can?"primary":""} w sm" style="margin-top:12px${can?"":";opacity:.45"}" ${can?`onclick="sheetRedeem('${r.id}')"`:"disabled"}>${can?"Canjear":"Te faltan puntos"}</button></div>`}).join("")}`;
 }
 function sheetRedeem(id){const r=S.rewards.find(x=>x.id===id);
