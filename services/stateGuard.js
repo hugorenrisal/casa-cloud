@@ -209,6 +209,26 @@ function sanitizeState(entrada) {
 }
 
 // ---------------------------------------------------------------------------
+//  Comparación que NO depende del orden de las claves.
+//
+//  PostgreSQL devuelve el JSONB con las claves reordenadas alfabéticamente, y
+//  sanitizeState reconstruye los objetos en el orden en que están escritos
+//  aquí. Comparar con JSON.stringify daba distinto para dos objetos idénticos.
+//
+//  No es un detalle: por esto un hijo recibía 403 al marcar una tarea suya.
+//  Su móvil devolvía el estado tal cual se lo habían dado, el saneado lo
+//  reconstruía con otro orden de claves, y `streak` parecía haber cambiado.
+// ---------------------------------------------------------------------------
+function huella(v) {
+  if (Array.isArray(v)) return "[" + v.map(huella).join(",") + "]";
+  if (v && typeof v === "object") {
+    return "{" + Object.keys(v).sort()
+      .map((k) => JSON.stringify(k) + ":" + huella(v[k])).join(",") + "}";
+  }
+  return JSON.stringify(v);
+}
+
+// ---------------------------------------------------------------------------
 //  2. Límites por rol
 //
 //  Devuelve { estado, rechazos }. `rechazos` describe lo que se ha impedido:
@@ -216,8 +236,14 @@ function sanitizeState(entrada) {
 // ---------------------------------------------------------------------------
 function applyChildLimits(entrante, anterior, childId) {
   const rechazos = [];
-  const salida = { ...entrante };
-  const prev = obj(anterior);
+  // Los DOS lados se sanean, para comparar peras con peras. Si solo se saneara
+  // uno, un `monthPoints: {}` guardado en la base de datos contra el
+  // `{hugo:0, marcos:0, carla:0}` que produce el saneado parecería un intento
+  // de manipulación, y el hijo recibiría un 403 al marcar su tarea.
+  // sanitizeState es idempotente, así que sanear de nuevo lo ya saneado no
+  // cuesta nada más que una pasada.
+  const salida = sanitizeState(obj(entrante));
+  const prev = sanitizeState(obj(anterior));
 
   // Campos que un hijo nunca escribe: se restauran y se avisa del intento.
   const SOLO_PADRES = [
@@ -225,10 +251,8 @@ function applyChildLimits(entrante, anterior, childId) {
     "fixedPay", "rate", "streak", "streakCarry", "history", "monthPoints", "generated",
   ];
   SOLO_PADRES.forEach((k) => {
-    if (k in prev && JSON.stringify(salida[k]) !== JSON.stringify(prev[k])) {
-      rechazos.push(k);
-    }
-    if (k in prev) salida[k] = prev[k];
+    if (huella(salida[k]) !== huella(prev[k])) rechazos.push(k);
+    salida[k] = prev[k];
   });
 
   // Las claves de ciclo se restauran EN SILENCIO: quien las valida es la

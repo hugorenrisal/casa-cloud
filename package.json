@@ -1,7 +1,7 @@
 {
-  "name": "casa-cloud",
-  "version": "2.0.0",
-  "description": "App familiar de tareas con estado compartido y base de datos",
+  "name": "casa",
+  "version": "3.0.0",
+  "description": "App de una casa: tareas, paga y menús para Hugo, Marcos, Carla y sus papás",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -11,13 +11,8 @@
     "node": ">=18"
   },
   "dependencies": {
-    "bcrypt": "^6.0.0",
-    "cookie-parser": "^1.4.7",
     "dotenv": "^17.4.2",
     "express": "^4.19.2",
-    "express-rate-limit": "^8.5.2",
-    "jsonwebtoken": "^9.0.3",
-    "nodemailer": "^9.0.5",
     "pg": "^8.11.5"
   }
 }

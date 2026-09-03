@@ -12,3 +12,7 @@ data.json
 casa-android/android/
 casa-android/*.aab
 casa-android/*.apk
+
+# Ajustes locales de Claude Code (launch.json sí se comparte: sirve para
+# arrancar el servidor con un clic).
+.claude/settings.local.json

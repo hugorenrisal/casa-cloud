@@ -46,13 +46,26 @@ function rachaDe(state, childId, hoyIdx) {
   return llegaAlLunes ? arrastre + dias : dias;
 }
 
+// ¿Son iguales dos mapas de "hijo -> número"?
+//
+// Se comparan clave a clave y NO con JSON.stringify, porque PostgreSQL
+// devuelve el JSONB con las claves reordenadas alfabéticamente. Con stringify,
+// {hugo:0, marcos:0, carla:0} y {carla:0, hugo:0, marcos:0} parecían
+// distintos: la racha se daba por "cambiada" en cada lectura, el servidor
+// guardaba, subía la versión, y había una escritura por cada GET.
+function mismosNumeros(a, b) {
+  const ka = Object.keys(a || {}), kb = Object.keys(b || {});
+  if (ka.length !== kb.length) return false;
+  return ka.every((k) => Number(a[k]) === Number(b[k]));
+}
+
 // Recalcula S.streak para todos los hijos. Devuelve true si algo cambió.
 function calcularRachas(state, hoyIdx) {
   const previo = state.streak || {};
   const nuevo = {};
   hijos(state).forEach((c) => { nuevo[c.id] = rachaDe(state, c.id, hoyIdx); });
   state.streak = nuevo;
-  return JSON.stringify(previo) !== JSON.stringify(nuevo);
+  return !mismosNumeros(previo, nuevo);
 }
 
 // Se llama JUSTO ANTES de vaciar fixedState al cambiar de semana.

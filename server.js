@@ -1,31 +1,30 @@
 // ============================================================================
-//  Servidor "Casa Cloud" — autenticación real + familias + invitaciones.
-//  - Auth propia (bcrypt + JWT en cookie httpOnly).
-//  - Emails transaccionales vía Resend (o consola si falta API key).
-//  - Persistencia en PostgreSQL (DATABASE_URL requerido en producción).
+//  Servidor "Casa" — app privada de una sola casa, sin cuentas.
+//
+//  No hay registro, ni contraseñas, ni email, ni sesiones. Los cuatro perfiles
+//  (Hugo, Marcos, Carla y el Dashboard de los Papás) están fijados en
+//  public/perfiles.js y el estado vive en una única fila de PostgreSQL.
+//
+//  Es deliberado: quien abre la app elige perfil y entra. Ver el comentario de
+//  cabecera de routes/state.js para el porqué y sus límites.
 // ============================================================================
 require("dotenv").config();
 
 const express = require("express");
 const path = require("path");
-const cookieParser = require("cookie-parser");
 
 const { hasDatabase } = require("./db");
 const { runMigrations } = require("./db/schema");
 
-const authRoutes = require("./routes/auth");
-const onboardingRoutes = require("./routes/onboarding");
-const familiesRoutes = require("./routes/families");
-const { router: invitationsRoutes, publicRouter: publicInvRoutes } = require("./routes/invitations");
 const stateRoutes = require("./routes/state");
 
 const app = express();
 
-// Necesario detrás de proxies (Render, Heroku) para cookies Secure y rate-limit por IP.
+// Necesario detrás de proxies (Render, Heroku) para que las IPs de los logs
+// sean las reales y no la del proxy.
 app.set("trust proxy", 1);
 
 app.use(express.json({ limit: "4mb" }));
-app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 
 // Salud
@@ -35,8 +34,7 @@ app.get("/api/health", (req, res) => res.json({ ok: true, db: hasDatabase() }));
 //  Demo pública (/demo)
 //  Sirve la misma aplicación, pero el cliente carga demo.js, que sustituye la
 //  capa de red por datos de ejemplo en memoria. Sirve para enseñar la app sin
-//  dar contraseñas. No toca la base de datos ni salta ninguna comprobación de
-//  sesión: en modo demo el navegador no llega a llamar a la API.
+//  tocar los datos de casa: en modo demo el navegador no llama a la API.
 // ---------------------------------------------------------------------------
 app.get("/demo", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
@@ -48,7 +46,6 @@ app.get("/demo", (req, res) => {
 //  con la barra del navegador. La huella SHA-256 la da Google Play DESPUÉS de
 //  subir la app por primera vez; se pone en la variable de entorno
 //  ANDROID_FINGERPRINT para no tener que tocar el código.
-//  Ruta pública a propósito: Google la lee sin estar autenticado.
 // ---------------------------------------------------------------------------
 app.get("/.well-known/assetlinks.json", (req, res) => {
   const huella = (process.env.ANDROID_FINGERPRINT || "").trim();
@@ -73,12 +70,7 @@ app.get("/.well-known/assetlinks.json", (req, res) => {
 });
 
 // API
-app.use("/api/auth", authRoutes);
-app.use("/api/onboarding", onboardingRoutes);
-app.use("/api/families", familiesRoutes);
-app.use("/api/families", invitationsRoutes);     // /api/families/:familyId/invitations/...
-app.use("/api/invitations", publicInvRoutes);    // /api/invitations/preview/:token, /api/invitations/accept
-app.use("/api", stateRoutes);                    // /api/state, /api/reset, /api/backup, /api/restore
+app.use("/api", stateRoutes);   // /api/state, /api/reset, /api/backup, /api/restore
 
 // 404 para rutas /api desconocidas
 app.use("/api", (req, res) => res.status(404).json({ error: "no_encontrado" }));
@@ -95,12 +87,12 @@ const PORT = process.env.PORT || 3000;
   try {
     if (!hasDatabase()) {
       console.warn("\n⚠️  DATABASE_URL no configurada.");
-      console.warn("    Auth, familias e invitaciones NO funcionarán.");
+      console.warn("    La app no podrá guardar nada.");
       console.warn("    Configura PostgreSQL (Neon recomendado) en .env\n");
     } else {
       await runMigrations();
     }
-    app.listen(PORT, () => console.log(`Casa Cloud escuchando en :${PORT}`));
+    app.listen(PORT, () => console.log(`Casa escuchando en :${PORT}`));
   } catch (e) {
     console.error("Error al arrancar:", e);
     process.exit(1);

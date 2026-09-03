@@ -1,41 +1,24 @@
 // ============================================================================
 //  MODO DEMO — "Casa"
 //
-//  Sirve para enseñar la app a alguien sin darle una contraseña y sin que
-//  toque los datos reales de ninguna familia.
+//  Sirve para enseñar la app a alguien sin que toque los datos reales de casa.
 //
 //  CÓMO FUNCIONA
 //  Toda la app habla con el servidor a través de una única función, api().
-//  Aquí la sustituimos por una versión falsa que responde desde una familia
+//  Aquí la sustituimos por una versión falsa que responde desde una casa
 //  inventada guardada en memoria. Consecuencias:
 //
 //    - NO se hace ni una sola petición al servidor real.
-//    - NO hay base de datos, ni cuentas, ni cookies de sesión.
-//    - Lo que se toque se pierde al recargar (o al pulsar "Reiniciar demo").
+//    - NO hay base de datos.
+//    - Lo que se toque se pierde al recargar (o al pulsar "Reiniciar").
 //
-//  Por eso la demo no abre ningún agujero de seguridad: no existe forma de
-//  llegar desde aquí a los datos de una familia de verdad.
+//  Los perfiles son los mismos de siempre (Hugo, Marcos, Carla y los papás):
+//  se cambia de uno a otro con el selector normal de la app, que es justo lo
+//  que hace la demo interesante — enseñar las dos experiencias sin necesitar
+//  dos dispositivos.
 // ============================================================================
 (function () {
   "use strict";
-
-  // --- Identidades de mentira ----------------------------------------------
-  const PADRE = {
-    id: "demo-padre", email: "padre@ejemplo.com", emailVerified: true,
-    displayName: "Carlos", role: "parent",
-    onboardingCompleted: true, familyId: "demo-familia", roleInFamily: "parent",
-  };
-  const HIJA = {
-    id: "ana", email: "ana@ejemplo.com", emailVerified: true,
-    displayName: "Ana", role: "child",
-    onboardingCompleted: true, familyId: "demo-familia", roleInFamily: "child",
-  };
-
-  // Quién está mirando la demo ahora mismo. Se puede cambiar en caliente con
-  // el botón de la barra superior, que es lo que hace la demo interesante:
-  // enseñar el panel del padre y la app del hijo sin dos dispositivos.
-  let comoQuien = "parent";
-  const usuarioActual = () => (comoQuien === "parent" ? PADRE : HIJA);
 
   // --- Fechas: la demo debe verse "de esta semana" sea cuando sea ----------
   function claveMes(d) {
@@ -60,18 +43,14 @@
     return d;
   }
 
-  // --- La familia de ejemplo ------------------------------------------------
+  // --- La casa de ejemplo ---------------------------------------------------
   function estadoInicial() {
     return {
-      view: "desk", profile: "parent", deskTab: "home", mobTab: "home",
       currentMonth: claveMes(hoy), currentWeek: claveSemana(hoy),
       rate: 0.05, fixedPay: 8,
-      members: [
-        { id: "demo-padre", name: "Carlos", role: "parent", color: "#8b6fd6", load: "normal" },
-        { id: "ana", name: "Ana", role: "child", color: "#e0588f", load: "normal" },
-        { id: "leo", name: "Leo", role: "child", color: "#2f9fd0", load: "reducida" },
-        { id: "mia", name: "Mía", role: "child", color: "#2fae73", load: "normal" },
-      ],
+      // Los mismos cuatro perfiles que la app real, con la disponibilidad de
+      // Marcos rebajada para que se vea el efecto en el reparto.
+      members: miembrosIniciales([{ id: "marcos", load: "reducida" }]),
       fixedTasks: [
         { id: "f1", name: "Hacer la cama", icon: "🛏️", freq: "daily" },
         { id: "f2", name: "Recoger tu plato", icon: "🍽️", freq: "daily" },
@@ -86,31 +65,31 @@
         { id: "e5", name: "Pasear al perro", points: 15, icon: "🐕" },
       ],
       // Los tres casos de la regla del dinero, para que se vean de un vistazo:
-      //   Mía  22/22 = 100% → cobra la paga fija Y desbloquea las adicionales
-      //   Ana  17/22 =  77% → cobra la paga fija, adicionales aún bloqueadas
-      //   Leo   9/22 =  41% → por debajo del 75%: pierde la paga fija
+      //   Carla  22/22 = 100% → cobra la paga fija Y desbloquea las adicionales
+      //   Hugo   17/22 =  77% → cobra la paga fija, adicionales aún bloqueadas
+      //   Marcos  9/22 =  41% → por debajo del 75%: pierde la paga fija
       // (3 tareas diarias × 7 días + 1 semanal = 22 unidades por hijo)
       fixedState: {
-        mia: { f1: { days: dias(7) }, f2: { days: dias(7) }, f3: { days: dias(7) }, f4: { status: "approved" } },
-        ana: { f1: { days: dias(6) }, f2: { days: dias(6) }, f3: { days: dias(5) }, f4: { status: "submitted" } },
-        leo: { f1: { days: dias(3) }, f2: { days: dias(3) }, f3: { days: dias(3) }, f4: { status: "pending" } },
+        carla: { f1: { days: dias(7) }, f2: { days: dias(7) }, f3: { days: dias(7) }, f4: { status: "approved" } },
+        hugo: { f1: { days: dias(6) }, f2: { days: dias(6) }, f3: { days: dias(5) }, f4: { status: "submitted" } },
+        marcos: { f1: { days: dias(3) }, f2: { days: dias(3) }, f3: { days: dias(3) }, f4: { status: "pending" } },
       },
       extras: [
-        { id: "x1", taskId: "e1", memberId: "ana", status: "approved", listed: false },
-        { id: "x2", taskId: "e2", memberId: "mia", status: "submitted", listed: false },
-        { id: "x3", taskId: "e3", memberId: "leo", status: "pending", listed: true },
-        { id: "x4", taskId: "e5", memberId: "mia", status: "approved", listed: false,
-          bounty: { points: 5, from: "leo", to: "mia" } },
-        { id: "x5", taskId: "e4", memberId: "ana", status: "pending", listed: false },
+        { id: "x1", taskId: "e1", memberId: "hugo", status: "approved", listed: false },
+        { id: "x2", taskId: "e2", memberId: "carla", status: "submitted", listed: false },
+        { id: "x3", taskId: "e3", memberId: "marcos", status: "pending", listed: true },
+        { id: "x4", taskId: "e5", memberId: "carla", status: "approved", listed: false,
+          bounty: { points: 5, from: "marcos", to: "carla" } },
+        { id: "x5", taskId: "e4", memberId: "hugo", status: "pending", listed: false },
       ],
       generated: true,
-      monthPoints: { ana: 0, leo: 0, mia: 0 },
+      monthPoints: { hugo: 0, marcos: 0, carla: 0 },
       // Coherentes con fixedState: en la app real las calcula el servidor a
       // partir de las casillas (services/rachas.js); aquí van fijas porque la
-      // demo no tiene servidor. Mía encadena semanas, Ana lleva 5 días, y a
-      // Leo se le ha roto: así se ve también ese caso.
-      streak: { ana: 5, leo: 0, mia: 12 },
-      history: { "2026-07": { points: { ana: 210, leo: 95, mia: 260 } } },
+      // demo no tiene servidor. Carla encadena semanas, Hugo lleva 5 días, y a
+      // Marcos se le ha roto: así se ve también ese caso.
+      streak: { hugo: 5, marcos: 0, carla: 12 },
+      history: { "2026-07": { points: { hugo: 210, marcos: 95, carla: 260 } } },
       dishes: [
         { id: "b1", name: "Tostadas con tomate", type: "desayuno", tags: ["rápido"] },
         { id: "b2", name: "Yogur con cereales", type: "desayuno", tags: ["rápido"] },
@@ -142,43 +121,23 @@
       ],
       // Una solicitud ya pedida, para que se vea el contador en "Premios"
       redemptions: [
-        { id: "c1", rewardId: "r2", childId: "mia", cost: 40, status: "pending", at: Date.now() - 7200000, resolvedAt: 0 },
+        { id: "c1", rewardId: "r2", childId: "carla", cost: 40, status: "pending", at: Date.now() - 7200000, resolvedAt: 0 },
       ],
       streakCarry: {},
       listings: [{
-        id: "l1", sellerId: "leo", assignmentId: "x3", taskId: "e3",
+        id: "l1", sellerId: "marcos", assignmentId: "x3", taskId: "e3",
         pointsOffered: 8, acceptsTrade: true, note: "Tengo entreno, ¿alguien?",
         status: "open", createdAt: Date.now() - 3600000,
       }],
       offers: [],
       marketLog: [{
-        kind: "take", taskId: "e5", from: "leo", to: "mia",
+        kind: "take", taskId: "e5", from: "marcos", to: "carla",
         points: 5, at: Date.now() - 86400000,
       }],
     };
   }
 
   let ESTADO = estadoInicial();
-
-  const FAMILIA = {
-    family: { id: "demo-familia", name: "Familia Ejemplo", created_at: "2026-01-15T10:00:00Z" },
-    members: [
-      { user_id: "demo-padre", display_name: "Carlos", email: "padre@ejemplo.com",
-        role_in_family: "parent", joined_at: "2026-01-15T10:00:00Z" },
-      { user_id: "ana", display_name: "Ana", email: "ana@ejemplo.com",
-        role_in_family: "child", joined_at: "2026-01-15T11:20:00Z" },
-      { user_id: "leo", display_name: "Leo", email: "leo@ejemplo.com",
-        role_in_family: "child", joined_at: "2026-01-16T09:05:00Z" },
-      { user_id: "mia", display_name: "Mía", email: "mia@ejemplo.com",
-        role_in_family: "child", joined_at: "2026-01-16T09:40:00Z" },
-    ],
-  };
-
-  const INVITACIONES = [
-    { id: "i1", email: "abuela@ejemplo.com", role: "parent", status: "pending",
-      expiresAt: new Date(Date.now() + 5 * 86400000).toISOString(),
-      acceptedAt: null, revokedAt: null, createdAt: new Date(Date.now() - 2 * 86400000).toISOString() },
-  ];
 
   // --- El servidor falso ----------------------------------------------------
   const copia = (o) => JSON.parse(JSON.stringify(o));
@@ -190,43 +149,25 @@
     return e;
   }
 
+  // Solo existen las rutas del estado. Ya no hay cuentas, familias ni
+  // invitaciones que fingir: la app real tampoco las tiene.
   async function apiDemo(url, opts) {
     const metodo = ((opts && opts.method) || "GET").toUpperCase();
     const ruta = String(url).split("?")[0];
     // Pequeño retardo para que la interfaz se comporte como con un servidor real
     await new Promise((r) => setTimeout(r, 40));
 
-    if (ruta === "/api/auth/me") return { user: copia(usuarioActual()) };
-
     if (ruta === "/api/state") {
       if (metodo === "PUT") {
         const cuerpo = opts.body;
         ESTADO = typeof cuerpo === "string" ? JSON.parse(cuerpo) : copia(cuerpo);
-        return { ok: true };
+        return { ok: true, version: 1 };
       }
       return copia(ESTADO);
     }
 
-    if (ruta === "/api/families/current") return copia(FAMILIA);
-
-    if (/\/invitations$/.test(ruta)) {
-      if (metodo === "POST") throw error("demo_solo_lectura", 403);
-      return { invitations: copia(INVITACIONES) };
-    }
-    if (/\/invitations\//.test(ruta)) throw error("demo_solo_lectura", 403);
-
     if (ruta === "/api/reset") { ESTADO = estadoInicial(); return { ok: true }; }
     if (ruta === "/api/restore") throw error("demo_solo_lectura", 403);
-
-    if (ruta === "/api/auth/logout") { salirDeLaDemo(); return { ok: true }; }
-
-    // Registro, login, invitaciones, familias… nada de eso existe en la demo.
-    if (ruta.indexOf("/api/auth/") === 0 ||
-        ruta.indexOf("/api/onboarding/") === 0 ||
-        ruta.indexOf("/api/families") === 0 ||
-        ruta.indexOf("/api/invitations") === 0) {
-      throw error("demo_solo_lectura", 403);
-    }
 
     throw error("no_encontrado", 404);
   }
@@ -240,7 +181,7 @@
       '<span class="demo-eti">DEMO</span>' +
       '<span class="demo-txt">Datos de ejemplo. No se guarda nada.</span>' +
       '<span class="demo-sep"></span>' +
-      '<button id="demoRol" class="demo-btn"></button>' +
+      '<button id="demoRol" class="demo-btn">👀 Cambiar de perfil</button>' +
       '<button id="demoReset" class="demo-btn">Reiniciar</button>' +
       '<button id="demoSalir" class="demo-btn">Salir</button>';
     document.body.appendChild(barra);
@@ -265,6 +206,7 @@
       "body.demo-activa .mob .phone{padding-bottom:160px}" +
       "body.demo-activa .sheet{bottom:46px}" +
       "body.demo-activa .modebar{top:0}" +
+      "body.demo-activa .pick-shell{padding-bottom:78px}" +
       // En pantallas estrechas se quita el texto largo para que todo quepa en
       // una sola línea.
       "@media(max-width:560px){#demoBar .demo-txt{display:none}#demoBar{gap:6px;padding-left:10px;padding-right:10px}" +
@@ -296,19 +238,20 @@
     document.head.appendChild(estilo);
     document.body.classList.add("demo-activa");
 
-    document.getElementById("demoRol").onclick = cambiarRol;
+    document.getElementById("demoRol").onclick = cambiarDePerfilDemo;
     document.getElementById("demoReset").onclick = reiniciarDemo;
     document.getElementById("demoSalir").onclick = salirDeLaDemo;
     actualizarBotonRol();
   }
 
+  // El botón dice a quién se está mirando. En pantalla estrecha, solo el nombre.
   function actualizarBotonRol() {
     const b = document.getElementById("demoRol");
     if (!b) return;
-    const estrecho = window.innerWidth < 560;
-    b.textContent = comoQuien === "parent"
-      ? (estrecho ? "👀 Hija" : "👀 Ver como hija")
-      : (estrecho ? "👀 Padre" : "👀 Ver como padre");
+    const id = perfilAbierto();
+    const p = id ? perfilPorId(id) : null;
+    const nombre = p ? (p.shortName || p.name) : "perfil";
+    b.textContent = window.innerWidth < 560 ? ("👀 " + nombre) : ("👀 " + nombre + " · cambiar");
   }
 
   // --- Marco de móvil ------------------------------------------------------
@@ -347,30 +290,32 @@
     }
   }
 
+  // Qué perfil hay abierto ahora mismo, o null si se está en el selector.
+  function perfilAbierto() {
+    const sel = document.getElementById("picker");
+    if (sel && sel.style.display === "block") return null;
+    return typeof window.perfilActual === "function" ? window.perfilActual() : null;
+  }
+
   // El marco solo tiene sentido si hay sitio: en un móvil de verdad, la app ya
   // ocupa toda la pantalla y enmarcarla sería absurdo.
   const cabeMarco = () => window.innerWidth >= 900 && window.innerHeight >= 700;
   function revisarMarco() {
-    aplicarMarco(comoQuien === "child" && cabeMarco());
+    const id = perfilAbierto();
+    aplicarMarco(!!id && esHijo(id) && cabeMarco());
+    actualizarBotonRol();
   }
 
-  window.addEventListener("resize", () => { actualizarBotonRol(); revisarMarco(); });
+  window.addEventListener("resize", revisarMarco);
 
-  // Se rearranca la app entera en vez de tocar su variable ME: esa está
-  // declarada con let dentro del script principal y no es accesible desde
-  // aquí. Al rearrancar, la app vuelve a pedir /api/auth/me y recibe el
-  // usuario nuevo de nuestro servidor falso.
-  async function cambiarRol() {
-    comoQuien = comoQuien === "parent" ? "child" : "parent";
-    actualizarBotonRol();
-    if (typeof window.bootstrap === "function") await window.bootstrap();
+  // Cambiar de perfil es lo mismo que en la app real: se abre el selector.
+  function cambiarDePerfilDemo() {
+    if (typeof window.cambiarDePerfil === "function") window.cambiarDePerfil();
     revisarMarco();
   }
 
   async function reiniciarDemo() {
     ESTADO = estadoInicial();
-    comoQuien = "parent";
-    actualizarBotonRol();
     if (typeof window.bootstrap === "function") await window.bootstrap();
     revisarMarco();
   }
@@ -382,6 +327,20 @@
   // --- Arranque -------------------------------------------------------------
   window.api = apiDemo;              // a partir de aquí, nada sale a la red
   window.__DEMO__ = true;
+
+  // El marco de teléfono tiene que aparecer y desaparecer al cambiar de perfil.
+  // En vez de inventar un evento, se envuelven las dos funciones de la app que
+  // marcan ese cambio: pintar la pantalla y volver al selector.
+  ["render", "mostrarSelector"].forEach((nombre) => {
+    const original = window[nombre];
+    if (typeof original !== "function") return;
+    window[nombre] = function () {
+      const r = original.apply(this, arguments);
+      revisarMarco();
+      return r;
+    };
+  });
+
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", pintarBarraDemo);
   } else {

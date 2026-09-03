@@ -1,157 +1,170 @@
-# 🏠 Casa Cloud
+# 🏠 Casa
 
-App familiar de gestión de tareas, paga semanal, menús y recompensas, con autenticación real y soporte multi-familia.
+App de una casa: tareas fijas y adicionales, paga semanal, niveles, premios,
+mercado de tareas entre hermanos y planificador de menús.
 
 - **Backend:** Node.js + Express + PostgreSQL.
-- **Auth:** propia (bcrypt + JWT en cookie httpOnly).
-- **Email:** Gmail SMTP con la cuenta de la familia (o impresión por consola en dev).
-- **Persistencia:** PostgreSQL (Neon / Supabase / local).
+- **Sin cuentas:** ni registro, ni contraseñas, ni email, ni verificación.
+- **Persistencia:** una única fila de PostgreSQL (Neon / Supabase / local).
 
-> 📖 **¿No eres desarrollador?** Usa la **[GUÍA DE INSTALACIÓN](GUIA-INSTALACION.md)**: explica
-> paso a paso, sin jerga, cómo configurar el envío de correos y poner la app en el ordenador y
-> en los móviles de la familia.
+> 📖 **¿No eres desarrollador?** Usa la **[GUÍA DE INSTALACIÓN](GUIA-INSTALACION.md)**.
+
+## Los cuatro perfiles
+
+Al abrir la app no hay pantalla de acceso: se elige quién eres y se entra.
+
+| Id | Quién | Experiencia |
+|---|---|---|
+| `hugo` | Hugo | móvil (mobile-first) |
+| `marcos` | Marcos | móvil (mobile-first) |
+| `carla` | Carla | móvil (mobile-first) |
+| `papas` | Dashboard de los Papás | escritorio (desktop-first) |
+
+Están definidos en **[`public/perfiles.js`](public/perfiles.js)**, un único
+archivo que cargan tanto el servidor (`require`) como el navegador
+(`<script src>`). Es el sitio donde se cambia un nombre o un color.
+
+Los ids son **estables**: van dentro del estado guardado (casillas de tareas,
+asignaciones, canjes, mercado, historial). Cambiar un id equivale a borrar el
+historial de esa persona.
+
+El perfil elegido se recuerda en `localStorage` de cada dispositivo y se cambia
+desde el botón de la barra superior.
+
+### Elegir perfil no es identificarse
+
+Cualquiera que abra la app puede elegir cualquier perfil. Es **intencionado**:
+es una app privada de una casa y pedirle una contraseña a un niño de diez años
+solo conseguiría que dejara de usarla.
+
+Lo que sí se conserva son las reglas de **producto**, y se aplican en el
+servidor porque en la interfaz se saltan con las herramientas del navegador:
+
+- un hijo puede marcar sus tareas como hechas, pero **no aprobárselas**;
+- un hijo **no puede tocar las tareas de sus hermanos**;
+- la paga, el valor del punto, los catálogos, las rachas y el historial son de
+  los papás;
+- las rachas las **calcula el servidor**; el cliente no las escribe nunca.
+
+El dispositivo declara su perfil en la cabecera `X-Perfil`. No es una
+credencial: no hay nada que verificar.
 
 ## Requisitos
 
 - Node.js 18+
 - PostgreSQL alcanzable por `DATABASE_URL` (recomendado: [Neon Free](https://neon.tech))
-- (Opcional) una cuenta de Gmail con contraseña de aplicación si quieres enviar emails reales
-  (https://myaccount.google.com/apppasswords)
 
 ## Setup local
 
 ```bash
-git clone https://github.com/hugorenrisal/casa-cloud.git
-cd casa-cloud
 npm install
 cp .env.example .env
-# editar .env con DATABASE_URL, JWT_SECRET, GMAIL_USER, GMAIL_APP_PASSWORD, etc.
 npm start
 ```
 
-Abre `http://localhost:3000`.
-
-> Si no defines `GMAIL_USER` / `GMAIL_APP_PASSWORD`, los emails se imprimen por **consola** en lugar de enviarse — útil en desarrollo. Copia la URL del email desde la terminal y pégala en el navegador.
->
-> Para probar el envío real: `node test-email.js tu@correo.com`
-
-### Generar `JWT_SECRET`
-
-```bash
-node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
-```
+Abre `http://localhost:3000`. Hay también una demo sin base de datos en
+`http://localhost:3000/demo`, que sustituye la capa de red por datos de ejemplo
+en memoria y **no hace ni una petición al servidor**.
 
 ## Variables de entorno
 
-Ver `.env.example`. Las críticas:
+Ver `.env.example`.
 
 | Variable | Obligatoria | Notas |
 |---|---|---|
 | `DATABASE_URL` | sí | PostgreSQL con SSL |
-| `JWT_SECRET` | sí | ≥32 caracteres aleatorios |
-| `GMAIL_USER` | en producción | Gmail completo; si falta → emails a consola |
-| `GMAIL_APP_PASSWORD` | en producción | contraseña de aplicación de 16 letras, no la normal |
-| `EMAIL_FROM` | no | por defecto usa GMAIL_USER |
-| `APP_URL` | sí | base de los enlaces de email |
+| `TZ_FAMILIA` | no | por defecto `Europe/Madrid`; decide cuándo cambia la semana y el mes |
 | `PORT` | no | por defecto 3000 |
-
-## Flujos
-
-1. **Registro** → email + contraseña + nombre. La cuenta queda activa al momento.
-2. ~~Verificación por email~~ → **desactivada temporalmente** (el código está en
-   `_email_disabled/`, con instrucciones para reactivarlo en su `README.md`).
-3. **Login** → JWT cookie httpOnly (7 días).
-4. **Onboarding** → elige rol (padre o hijo).
-5. **Padre** → crea familia. Invita por email a co-padres e hijos.
-6. **Hijo** → acepta invitación. Queda unido a la familia.
-7. **App** → padre ve dashboard; hijo ve vista móvil.
+| `ANDROID_FINGERPRINT` | solo para Google Play | SHA-256 que da Play Console |
 
 ## API
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| POST | `/api/auth/register` | Crea cuenta, envía email |
-| POST | `/api/auth/login` | Sesión + cookie |
-| POST | `/api/auth/logout` | Borra cookie |
-| GET | `/api/auth/me` | Info del usuario actual |
-| POST | `/api/auth/verify-email` | Confirma email |
-| POST | `/api/auth/resend-verify` | Reenvía email de verificación |
-| POST | `/api/auth/forgot-password` | Envía email de reset |
-| POST | `/api/auth/reset-password` | Cambia contraseña con token |
-| POST | `/api/onboarding/role` | Elige rol (parent\|child) |
-| POST | `/api/onboarding/create-family` | Solo padres |
-| GET | `/api/families/current` | Familia + miembros |
-| PATCH | `/api/families/:id` | Renombrar (padres) |
-| DELETE | `/api/families/:id/members/:uid` | Expulsar (padres) |
-| POST | `/api/families/:id/invitations` | Crear invitación |
-| GET | `/api/families/:id/invitations` | Listar invitaciones |
-| POST | `/api/families/:id/invitations/:inv/revoke` | Revocar |
-| POST | `/api/families/:id/invitations/:inv/resend` | Reenviar |
-| GET | `/api/invitations/preview/:token` | Info pública previa |
-| POST | `/api/invitations/accept` | Aceptar (auth) |
-| GET | `/api/state` | Estado de mi familia |
-| PUT | `/api/state` | Guardar estado |
-| GET | `/api/backup` | Descargar copia (padres) |
-| POST | `/api/restore` | Restaurar copia (padres) |
-| POST | `/api/reset` | Reinicio (padres) |
+| GET | `/api/state` | Estado de la casa (con perfiles y ciclos ya aplicados) |
+| PUT | `/api/state` | Guardar estado (con control de versión) |
+| GET | `/api/backup` | Descargar copia (papás) |
+| POST | `/api/restore` | Restaurar copia (papás) |
+| POST | `/api/reset` | Volver al estado de ejemplo (papás) |
+| GET | `/api/health` | Salud del servicio |
+
+Todas aceptan la cabecera `X-Perfil` (`hugo` \| `marcos` \| `carla` \| `papas`).
+Si falta o no es válida, se asume `papas`.
 
 ## Estructura
 
 ```
-casa-cloud/
-├── server.js                 # Bootstrap Express + montaje de rutas
+casa/
+├── server.js                   # Express + montaje de rutas
 ├── db/
-│   ├── index.js              # Pool PostgreSQL
-│   ├── schema.js             # Ejecutor de migraciones
-│   └── migrations/*.sql      # Migraciones idempotentes
-├── middleware/
-│   ├── requireAuth.js
-│   └── requireFamily.js
+│   ├── index.js                # Pool PostgreSQL
+│   ├── schema.js               # Ejecutor de migraciones
+│   └── migrations/*.sql        # Idempotentes; 001-007 son legado (ver 008)
 ├── routes/
-│   ├── auth.js
-│   ├── onboarding.js
-│   ├── families.js
-│   ├── invitations.js
-│   └── state.js
+│   └── state.js                # Toda la API: estado, ciclos, copias
 ├── services/
-│   ├── authService.js        # bcrypt, JWT, tokens, validaciones
-│   ├── emailService.js       # Gmail SMTP + plantillas
-│   └── familyService.js
-└── public/
-    └── index.html            # SPA (auth + app)
+│   ├── estadoService.js        # Semilla, perfiles, forma del estado, BD
+│   ├── stateGuard.js           # Saneado + límites por perfil
+│   ├── puntos.js               # Resumen del mes
+│   └── rachas.js               # Cálculo de rachas
+├── public/
+│   ├── perfiles.js             # LOS CUATRO PERFILES (servidor y navegador)
+│   ├── index.html              # La app entera
+│   ├── demo.js                 # Servidor falso en memoria para /demo
+│   └── sw.js                   # Service worker (app instalable)
+└── test/                       # node --test, sin dependencias
 ```
+
+## Base de datos
+
+El estado vive en `casa_state`, una tabla de **una sola fila**
+(`CHECK (id = 1)`), sin claves foráneas ni usuarios.
+
+La migración `008_casa_state.sql` la crea y copia dentro el estado que hubiera
+en la `family_state` de la época de las cuentas. **No borra nada**: las tablas
+antiguas (`users`, `user_profiles`, `families`, `family_members`,
+`family_state`, `family_invitations` y las de tokens) siguen ahí, huérfanas,
+por si hiciera falta consultarlas. Se pueden borrar a mano cuando ya no
+interesen.
+
+Los ids de miembro que venían dentro de aquel JSON eran UUID. Los traduce
+`adoptarPerfiles()` en `services/estadoService.js`, emparejando **por nombre**
+con Hugo, Marcos y Carla (y cualquier padre o madre con `papas`). Es una
+operación idempotente y está cubierta por `test/perfiles.test.js`.
+
+## Concurrencia
+
+Cada guardado manda la versión de la que viene. Si alguien escribió en medio,
+el servidor responde **409** y el cliente vuelve a aplicar sus campos sobre el
+estado fresco en lugar de pisarlo en silencio.
+
+Los reinicios de semana y de mes los decide el **reloj del servidor** en el
+huso de `TZ_FAMILIA`, no el del móvil de cada uno.
+
+## Pruebas
+
+```bash
+npm test
+```
+
+Runner incorporado de Node, sin dependencias. Cubre las reglas del dinero, el
+reparto por peso, el saneado, los límites por perfil, las rachas, los menús, el
+mercado, la fusión ante conflictos y la traducción de perfiles.
 
 ## Despliegue (Render + Neon)
 
-1. Crea proyecto gratuito en **[Neon](https://neon.tech)** → copia *Pooled connection string*.
-2. Sube este repo a GitHub.
-3. Crea **Web Service** en [Render](https://render.com): build `npm install`, start `npm start`.
-4. Variables de entorno en Render:
-   - `DATABASE_URL` (Neon)
-   - `JWT_SECRET` (genera uno largo y aleatorio)
-   - `GMAIL_USER=tunombre@gmail.com`
-   - `GMAIL_APP_PASSWORD` (contraseña de aplicación, no la normal)
-   - `APP_URL=https://<tu-app>.onrender.com`
-   - `NODE_ENV=production`
-5. Despliega. Las migraciones corren automáticamente al arrancar.
+1. Crea proyecto gratuito en **[Neon](https://neon.tech)** → copia la
+   *Pooled connection string*.
+2. Crea un **Web Service** en [Render](https://render.com): build `npm install`,
+   start `npm start`.
+3. Variables de entorno: `DATABASE_URL`, `TZ_FAMILIA`, `NODE_ENV=production`.
+4. Despliega. Las migraciones corren solas al arrancar.
 
-## Seguridad
+## Limitaciones conocidas
 
-- Hash de contraseñas con bcrypt (12 rondas).
-- JWT firmado HS256 en cookie **httpOnly + SameSite=Lax** (Secure en producción).
-- Tokens opacos (invitación, verify, reset) guardados como **SHA-256** — nunca en plano.
-- Invitaciones con expiración 7 días + revocables + uso único.
-- Rate limiting en login, registro, recuperación de contraseña e invitaciones.
-- Validación server-side de ownership familiar en cada endpoint.
-- Aislamiento total entre familias (toda lectura/escritura filtrada por `family_id`).
-
-## Limitaciones conocidas (v1)
-
-- Sin refresh tokens (JWT 7 días, sin blacklist).
-- Sin eliminación de cuenta/datos por el usuario (RGPD).
-- Una sola familia por usuario.
-- Sin notificaciones push.
-- Polling cada 4 s para sincronizar entre dispositivos.
+- Sin notificaciones push: los pendientes se ven con un contador en las pestañas.
+- Sondeo cada 4 s para sincronizar entre dispositivos.
+- Una sola casa por despliegue (es lo que se buscaba).
 
 ## Licencia
 

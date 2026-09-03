@@ -35,15 +35,21 @@ verificación de identidad y este rato de configuración.
 Y hay algo que **no** te aporta: en iPhone esto no sirve de nada. Apple no permite TWAs; en
 iPhone se seguirá usando "Añadir a pantalla de inicio".
 
-### El acceso ya está resuelto
+### El acceso: no hay
 
-Esta versión **ya tiene cuentas de verdad**: registro con correo y contraseña (cifrada con
-bcrypt), sesión con cookie segura, familias separadas e invitaciones por email. No hay que
-configurar ninguna contraseña extra para publicar.
+Esta versión **no tiene cuentas**: ni registro, ni contraseñas, ni correo. Se entra eligiendo
+uno de los cuatro perfiles fijos (Hugo, Marcos, Carla y el Dashboard de los Papás).
+
+⚠️ **Piénsatelo dos veces antes de publicarla en Google Play.** Sin acceso, cualquiera que la
+instale desde la tienda entra directamente en los datos de vuestra casa: la dirección del
+servidor va dentro del paquete. Eso es razonable en una app privada cuya dirección solo
+conocéis vosotros, pero deja de serlo en una tienda pública.
+
+Si lo que querías era el icono en el móvil, **con "Añadir a pantalla de inicio" ya lo tienes**
+(ver la guía de instalación) y no hace falta pasar por Play Store.
 
 Lo único que sí debes comprobar antes de publicar: que la variable `DATABASE_URL` está puesta
-en Render. Sin base de datos, el registro y las invitaciones no funcionan y la app quedaría
-inservible para quien la instale desde Google Play.
+en Render. Sin base de datos la app no puede guardar nada.
 
 ---
 
@@ -140,23 +146,19 @@ Al terminar tendrás el archivo **`app-release-bundle.aab`**. Ese es tu app.
 ### Formulario "Seguridad de los datos"
 
 ⚠️ Contesta esto con cuidado: una declaración falsa es motivo de retirada de la app. Esta
-versión **sí recoge correos electrónicos** (para las cuentas y las invitaciones), así que no
-vale decir que solo se recoge un alias.
+versión **no recoge correos ni contraseñas**, porque no tiene cuentas: lo único personal son
+los nombres de pila y la actividad dentro de la app.
 
 - ¿Recoge datos? **Sí.**
 - **Información personal → Nombre:** sí. Recogido, no compartido. Obligatorio.
-  Finalidad: funcionalidad de la app.
-- **Información personal → Dirección de correo electrónico:** sí. Recogido, no compartido.
-  Obligatorio. Finalidad: funcionalidad de la app y gestión de la cuenta.
-- **Información personal → Contraseña (credenciales):** sí, recogida.
-  Se guarda cifrada con bcrypt, nunca en texto claro.
+  Finalidad: funcionalidad de la app. Son nombres de pila, escritos en el propio código.
+- **Información personal → Dirección de correo electrónico:** **no**. La app no pide correo.
+- **Información personal → Contraseña (credenciales):** **no**. La app no tiene contraseñas.
 - **Actividad en la app → Acciones en la app:** sí (tareas marcadas, puntos, intercambios).
 - ¿Se cifran en tránsito? **Sí** (HTTPS).
 - ¿Puede el usuario pedir que se borren sus datos? **Sí.**
-- ¿Se comparten con terceros? **No** en el sentido de Google. Ojo: los correos de invitación
-  se envían a través de **Resend**, que actúa como proveedor de servicio (encargado del
-  tratamiento), no como destinatario que use los datos por su cuenta. La política de privacidad
-  lo menciona expresamente.
+- ¿Se comparten con terceros? **No.** La app no envía correos ni usa ningún servicio de
+  mensajería, analítica o publicidad.
 
 ### Clasificación de contenido
 Cuestionario normal: **sin violencia, sin contenido sexual, sin apuestas, sin compras**.

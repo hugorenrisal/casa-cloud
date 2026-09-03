@@ -15,7 +15,9 @@
 // v2 (ago 2026): iconos de iOS regenerados sin transparencia.
 // v3 (ago 2026): el JavaScript pasa a "red primero" para que los cambios de
 //                código lleguen de inmediato, y se añade demo.js.
-const VERSION = "casa-v3";
+// v4 (sep 2026): fuera las cuentas. Hay que renovar el cascarón porque el HTML
+//                guardado todavía pediría la pantalla de inicio de sesión.
+const VERSION = "casa-v4";
 const CASCARON = [
   "/",
   "/manifest.webmanifest",
@@ -53,7 +55,7 @@ self.addEventListener("fetch", (evento) => {
   // Solo se gestiona lo de este mismo servidor y solo lecturas.
   if (url.origin !== self.location.origin || peticion.method !== "GET") return;
 
-  // La API y el login NUNCA pasan por caché: siempre a la red, sin excepción.
+  // La API NUNCA pasa por caché: siempre a la red, sin excepción.
   if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/.well-known/")) return;
 
   // Navegación (abrir la app): red primero; si no hay conexión, el cascarón.

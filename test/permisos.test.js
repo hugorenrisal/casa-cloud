@@ -182,7 +182,29 @@ test("un hijo NO puede inflarse la racha ni los puntos", () => {
 
   assert.ok(rechazos.includes("streak"));
   assert.ok(rechazos.includes("monthPoints"));
-  assert.deepEqual(estado.streak, {});
+  // Se restaura la racha guardada, no la inventada. El saneado la deja como un
+  // número por hijo, así que "sin racha" es un 0 por cabeza y no un objeto
+  // vacío: lo que importa es que el 999 no ha sobrevivido.
+  assert.deepEqual(estado.streak, { [ANA]: 0, [LEO]: 0 });
+  assert.deepEqual(estado.monthPoints, { [ANA]: 0, [LEO]: 0 });
+});
+
+// Regresión: durante un tiempo, un hijo recibía 403 al marcar CUALQUIER tarea.
+// El motivo no era una regla de permisos, sino que se comparaba con
+// JSON.stringify un estado que venía de PostgreSQL (claves reordenadas) contra
+// otro reconstruido por el saneado. Dos objetos idénticos daban distinto.
+test("el orden de las claves no cuenta como intento de manipulación", () => {
+  const prev = estadoBase();
+  // Mismo contenido, claves al revés: es lo que devuelve PostgreSQL.
+  const reordenado = JSON.parse(JSON.stringify(prev));
+  reordenado.streak = { [LEO]: 0, [ANA]: 0 };
+  reordenado.menu = { Dom: {}, Lun: {} };
+  prev.streak = { [ANA]: 0, [LEO]: 0 };
+  prev.menu = { Lun: {}, Dom: {} };
+
+  const { rechazos } = applyChildLimits(reordenado, prev, ANA);
+
+  assert.deepEqual(rechazos, [], "nada que rechazar: es el mismo estado");
 });
 
 test("un hijo NO puede añadirse premios ni tareas al catálogo", () => {

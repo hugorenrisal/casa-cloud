@@ -29,34 +29,33 @@ code{background:#f5ead8;padding:2px 6px;border-radius:5px;font-size:13px}
     <h2>Qué es esta aplicación</h2>
     <p>«Casa» es una aplicación de uso <strong>familiar y privado</strong> para repartir las tareas
     del hogar y calcular la paga correspondiente. No se distribuye al público general: se instala
-    por invitación en los dispositivos de una sola familia.</p>
+    en los dispositivos de una sola familia.</p>
   </div>
 
   <div class="card">
     <h2>Qué datos se guardan</h2>
-    <p>Únicamente los mínimos para que la aplicación funcione:</p>
+    <p>La aplicación <strong>no tiene cuentas de usuario</strong>: no hay registro, ni contraseñas,
+    ni direcciones de correo, ni verificación de ningún tipo. Se entra eligiendo uno de cuatro
+    perfiles fijos que están escritos en el propio código.</p>
+    <p>Lo único que se guarda es:</p>
     <ul>
-      <li><strong>Correo electrónico</strong>, necesario para crear la cuenta, iniciar sesión y
-        recibir invitaciones a una familia.</li>
-      <li><strong>Contraseña</strong>, que se guarda <strong>cifrada</strong> (bcrypt).
-        Nunca se almacena en texto legible y nadie puede consultarla, tampoco quien administra
-        la aplicación.</li>
-      <li><strong>Un alias o nombre de pila</strong> por cada miembro de la familia (por ejemplo
-        «Ana»). No se piden apellidos.</li>
+      <li><strong>El nombre de pila</strong> de cada miembro de la casa (por ejemplo «Hugo»).
+        No se piden apellidos.</li>
       <li><strong>Actividad dentro de la aplicación</strong>: qué tareas se han marcado como
         hechas, los puntos acumulados y los intercambios de tareas entre hermanos.</li>
-      <li><strong>Ajustes</strong>: importe de la paga, valor de los puntos y menú semanal.</li>
+      <li><strong>Ajustes</strong>: importe de la paga, valor de los puntos, premios y menú
+        semanal.</li>
     </ul>
-    <p><strong>No</strong> se recogen: teléfono, dirección postal, ubicación, contactos, fotos,
-    identificadores de publicidad ni datos biométricos.</p>
+    <p>En el propio dispositivo se recuerda además <strong>qué perfil se eligió la última vez</strong>,
+    para no tener que preguntarlo cada vez. Esa preferencia no sale del navegador.</p>
+    <p><strong>No</strong> se recogen: correo electrónico, contraseñas, teléfono, dirección postal,
+    ubicación, contactos, fotos, identificadores de publicidad ni datos biométricos.</p>
   </div>
 
   <div class="card">
     <h2>Servicios de terceros</h2>
-    <p>Para enviar los correos de invitación y de verificación se utiliza el servicio de
-    <strong>Google (Gmail)</strong> asociado a la cuenta de la familia, que actúa únicamente
-    como proveedor del envío: recibe la dirección de correo del destinatario y el contenido
-    del mensaje, y no usa esos datos para fines propios ajenos al envío.</p>
+    <p>La aplicación <strong>no envía correos electrónicos</strong> ni utiliza ningún servicio de
+    mensajería.</p>
     <p>Los datos se alojan en la infraestructura del proveedor de hosting y de la base de datos
     contratados por la familia responsable de la instalación.</p>
     <p>La aplicación carga tipografías desde Google Fonts; ese servicio puede registrar la
@@ -70,17 +69,20 @@ code{background:#f5ead8;padding:2px 6px;border-radius:5px;font-size:13px}
       <li>No comparte ni vende datos a terceros.</li>
       <li>No usa servicios de analítica ni de seguimiento.</li>
       <li>No mueve dinero real: solo <em>calcula</em> cuánto correspondería entregar.</li>
-      <li>No permite el registro de usuarios ajenos a la familia.</li>
+      <li>No tiene registro de usuarios: no existen cuentas.</li>
     </ul>
   </div>
 
   <div class="card">
     <h2>Quién puede ver los datos</h2>
-    <p>Cada persona accede con <strong>su propia cuenta</strong>. Los datos de una familia solo
-    son visibles para los miembros de esa familia: no se comparten entre familias distintas.
-    Toda la conexión va cifrada (HTTPS).</p>
-    <p>Para entrar en una familia hace falta una <strong>invitación</strong> enviada por un
-    adulto de esa familia a un correo concreto.</p>
+    <p>Se trata de una instalación privada de una única casa, cuya dirección solo conocen sus
+    miembros. Quien tenga esa dirección puede elegir cualquiera de los cuatro perfiles y ver los
+    datos: <strong>es intencionado</strong>, porque pedir una contraseña a un niño solo conseguiría
+    que dejara de usar la aplicación.</p>
+    <p>Lo que sí comprueba el servidor son las reglas del reparto: un hijo puede marcar sus
+    tareas como hechas, pero no aprobárselas ni modificar las de sus hermanos, ni cambiar la paga
+    o los premios.</p>
+    <p>Toda la conexión va cifrada (HTTPS).</p>
   </div>
 
   <div class="card">
@@ -92,12 +94,12 @@ code{background:#f5ead8;padding:2px 6px;border-radius:5px;font-size:13px}
 
   <div class="card">
     <h2>Conservación y borrado</h2>
-    <p>Los datos se conservan mientras la familia use la aplicación. El adulto responsable puede
+    <p>Los datos se conservan mientras la casa use la aplicación. El adulto responsable puede
     <strong>borrarlos por completo en cualquier momento</strong> reiniciando los datos desde la
     propia aplicación o dando de baja el servidor, lo que elimina toda la información de forma
     irreversible.</p>
-    <p>Para solicitar el borrado de una cuenta y de los datos asociados, escribe al correo de
-    contacto que aparece más abajo. La solicitud se atenderá en un plazo máximo de 30 días.</p>
+    <p>Al no haber cuentas, no existe nada que dar de baja individualmente: reiniciar los datos
+    borra toda la actividad guardada.</p>
   </div>
 
   <div class="card">
@@ -107,7 +109,7 @@ code{background:#f5ead8;padding:2px 6px;border-radius:5px;font-size:13px}
   </div>
 
   <p class="pie">
-    Última actualización: 13 de agosto de 2026.<br>
+    Última actualización: 3 de septiembre de 2026.<br>
     <a href="/">← Volver a la aplicación</a>
   </p>
 </main>
